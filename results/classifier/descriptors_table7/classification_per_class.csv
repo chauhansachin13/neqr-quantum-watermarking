@@ -1,0 +1,10 @@
+label,attack,accuracy,precision,recall,f1,support,correct
+0,No attack,1.0,1.0,1.0,1.0,100,100
+1,Gaussian noise,1.0,1.0,1.0,1.0,100,100
+2,Salt-and-pepper noise,1.0,1.0,1.0,1.0,100,100
+3,Median filter,1.0,1.0,1.0,1.0,100,100
+4,Histogram equalization,1.0,1.0,1.0,1.0,100,100
+5,JPEG compression,1.0,1.0,1.0,1.0,100,100
+6,Cropping,1.0,1.0,1.0,1.0,100,100
+7,Rotation,1.0,1.0,1.0,1.0,100,100
+8,Text addition,1.0,1.0,1.0,1.0,100,100

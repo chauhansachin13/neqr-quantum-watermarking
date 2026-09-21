@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neqr-quantum-watermarking"
+version = "1.0.0"
+description = "Simulation-based quantum image watermarking with NEQR and reversible quantum logic (RPA, RPS, D4, QE), plus an AI-assisted attack classifier."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Sachin Chauhan" }]
+keywords = [
+  "quantum-computing", "qiskit", "neqr", "image-watermarking",
+  "reversible-logic", "quantum-image-processing", "random-forest",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "qiskit>=1.0",
+  "qiskit-aer>=0.14",
+  "scikit-learn>=1.3",
+  "scikit-image>=0.21",
+  "opencv-python-headless>=4.8",
+  "pillow>=10.0",
+  "matplotlib>=3.7",
+  "pandas>=2.0",
+  "pylatexenc>=2.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4"]
+
+[project.scripts]
+qwm = "qwm.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["qwm*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]

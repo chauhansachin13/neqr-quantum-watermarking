@@ -1,0 +1,240 @@
+{
+  "samples": 4500,
+  "samples_per_class": 500,
+  "features": "descriptors",
+  "attack_params": "random",
+  "feature_length": 137,
+  "dataset_time_s": 28.588684125003056,
+  "train_eval_time_s": 0.8663857089995872,
+  "result": {
+    "accuracy": 0.9911111111111112,
+    "precision": 0.9913052730490386,
+    "recall": 0.991111111111111,
+    "f1": 0.9911258567922858,
+    "correct": 892,
+    "total": 900,
+    "confidence_interval_wald": [
+      0.9849789755436328,
+      0.9972432466785895
+    ],
+    "confidence_interval_wilson": [
+      0.9825585198197871,
+      0.9954891138364709
+    ],
+    "chance_level": 0.1111111111111111,
+    "binomial_p_value": 0.0,
+    "cv_scores": [
+      0.9888888888888889,
+      0.9888888888888889,
+      0.9902777777777778,
+      0.9875,
+      0.9902777777777778
+    ],
+    "per_class": [
+      {
+        "label": 0,
+        "attack": "No attack",
+        "accuracy": 0.9922222222222222,
+        "precision": 0.9514563106796117,
+        "recall": 0.98,
+        "f1": 0.9655172413793104,
+        "support": 100,
+        "correct": 98
+      },
+      {
+        "label": 1,
+        "attack": "Gaussian noise",
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 100,
+        "correct": 100
+      },
+      {
+        "label": 2,
+        "attack": "Salt-and-pepper noise",
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 100,
+        "correct": 100
+      },
+      {
+        "label": 3,
+        "attack": "Median filter",
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 100,
+        "correct": 100
+      },
+      {
+        "label": 4,
+        "attack": "Histogram equalization",
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 100,
+        "correct": 100
+      },
+      {
+        "label": 5,
+        "attack": "JPEG compression",
+        "accuracy": 0.9966666666666667,
+        "precision": 0.98989898989899,
+        "recall": 0.98,
+        "f1": 0.9849246231155779,
+        "support": 100,
+        "correct": 98
+      },
+      {
+        "label": 6,
+        "attack": "Cropping",
+        "accuracy": 0.9977777777777778,
+        "precision": 0.9803921568627451,
+        "recall": 1.0,
+        "f1": 0.9900990099009901,
+        "support": 100,
+        "correct": 100
+      },
+      {
+        "label": 7,
+        "attack": "Rotation",
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 100,
+        "correct": 100
+      },
+      {
+        "label": 8,
+        "attack": "Text addition",
+        "accuracy": 0.9955555555555555,
+        "precision": 1.0,
+        "recall": 0.96,
+        "f1": 0.9795918367346939,
+        "support": 100,
+        "correct": 96
+      }
+    ],
+    "confusion_matrix": [
+      [
+        98,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        100,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        0,
+        0,
+        0,
+        98,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        100,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        100,
+        0
+      ],
+      [
+        3,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        96
+      ]
+    ],
+    "n_train": 3600,
+    "n_test": 900,
+    "hyperparameters": {
+      "n_estimators": 100,
+      "criterion": "gini",
+      "max_depth": null,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "sqrt",
+      "bootstrap": true,
+      "class_weight": null,
+      "random_state": 42
+    }
+  }
+}
