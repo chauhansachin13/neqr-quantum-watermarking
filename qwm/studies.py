@@ -259,7 +259,9 @@ def nisq_study(
     The (circuit, topology) sweeps run in parallel worker processes.  Points
     above 1e-3 use a quarter of the shots, and once a curve has fallen below
     ``stop_below`` the higher error rates are recorded as 0 without simulating
-    (``measured = False`` in the CSV); success can only decrease with ``p``.
+    (``measured = False`` in the CSV).  For a ``k``-bit output the success
+    decays towards the random-guess floor ``2**-k``, so the cut-off only ever
+    triggers for multi-bit outputs; single-bit verdicts are always simulated.
     """
     import os
     from concurrent.futures import ProcessPoolExecutor, as_completed
