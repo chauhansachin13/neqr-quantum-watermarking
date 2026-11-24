@@ -103,7 +103,7 @@ def complexity_comparison(sizes=(4, 16, 256), q: int = 8) -> list[dict]:
 # --------------------------------------------------------------------------- #
 # Measured figures from the constructed circuits
 # --------------------------------------------------------------------------- #
-REVERSIBLE_LEAVES = ("x", "cx", "ccx", "swap")
+REVERSIBLE_LEAVES = ("x", "cx", "ccx", "rccx", "swap")
 
 
 def _is_leaf(name: str) -> bool:

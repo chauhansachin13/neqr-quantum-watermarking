@@ -102,6 +102,13 @@ class BasisStateSimulator:
                 a, b = idx
                 bits[a], bits[b] = bits[b], bits[a]
                 continue
+            if name == "rccx":
+                # relative-phase (Margolus) Toffoli: a Toffoli up to a diagonal phase,
+                # i.e. identical on computational-basis states
+                c1, c2, target = idx
+                if bits[c1] and bits[c2]:
+                    bits[target] ^= 1
+                continue
             if name in _X_LIKE or name.startswith("mcx"):
                 n_ctrl = getattr(op, "num_ctrl_qubits", 0) or 0
                 ctrl_state = getattr(op, "ctrl_state", None)
