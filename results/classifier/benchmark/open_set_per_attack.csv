@@ -1,0 +1,9 @@
+attack,rejected_as_unknown,mean_confidence,most_often_called,share_called_that
+gaussian_blur,0.1,0.7998999999999999,median_filter,0.99
+sharpen,0.95,0.42919999999999997,text_addition,0.37
+rescale,0.32,0.6884,median_filter,0.88
+gamma_correction,0.89,0.4797,no_attack,0.78
+brightness,0.48,0.6638000000000001,no_attack,0.34
+speckle_noise,0.26,0.7588000000000001,gaussian_noise,0.91
+motion_blur,0.23,0.7136,median_filter,0.94
+contrast_stretch,0.9,0.46759999999999996,histogram_equalization,0.79

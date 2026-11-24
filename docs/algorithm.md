@@ -1,5 +1,7 @@
 # Algorithm reference
 
+> This document covers the v1 reproduction. For the keyed blind scheme, self-recovery, the lean circuits, the NISQ study, the classifier benchmark and the consistency checks added in v2, see [IMPROVEMENTS.md](IMPROVEMENTS.md).
+
 This document describes, module by module, what the package implements and
 how each piece maps to the simulation-level NEQR watermarking framework it
 reproduces. Section and figure numbers refer to the reference design

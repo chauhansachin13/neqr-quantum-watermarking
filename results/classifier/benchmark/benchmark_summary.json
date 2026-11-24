@@ -1,0 +1,203 @@
+{
+  "open_set": {
+    "threshold": 0.67,
+    "known_accepted": 0.9511111111111111,
+    "known_accuracy": 0.9911111111111112,
+    "unseen_rejected": 0.51625,
+    "auroc": 0.9220118055555555,
+    "per_attack": [
+      {
+        "attack": "gaussian_blur",
+        "rejected_as_unknown": 0.1,
+        "mean_confidence": 0.7998999999999999,
+        "most_often_called": "median_filter",
+        "share_called_that": 0.99
+      },
+      {
+        "attack": "sharpen",
+        "rejected_as_unknown": 0.95,
+        "mean_confidence": 0.42919999999999997,
+        "most_often_called": "text_addition",
+        "share_called_that": 0.37
+      },
+      {
+        "attack": "rescale",
+        "rejected_as_unknown": 0.32,
+        "mean_confidence": 0.6884,
+        "most_often_called": "median_filter",
+        "share_called_that": 0.88
+      },
+      {
+        "attack": "gamma_correction",
+        "rejected_as_unknown": 0.89,
+        "mean_confidence": 0.4797,
+        "most_often_called": "no_attack",
+        "share_called_that": 0.78
+      },
+      {
+        "attack": "brightness",
+        "rejected_as_unknown": 0.48,
+        "mean_confidence": 0.6638000000000001,
+        "most_often_called": "no_attack",
+        "share_called_that": 0.34
+      },
+      {
+        "attack": "speckle_noise",
+        "rejected_as_unknown": 0.26,
+        "mean_confidence": 0.7588000000000001,
+        "most_often_called": "gaussian_noise",
+        "share_called_that": 0.91
+      },
+      {
+        "attack": "motion_blur",
+        "rejected_as_unknown": 0.23,
+        "mean_confidence": 0.7136,
+        "most_often_called": "median_filter",
+        "share_called_that": 0.94
+      },
+      {
+        "attack": "contrast_stretch",
+        "rejected_as_unknown": 0.9,
+        "mean_confidence": 0.46759999999999996,
+        "most_often_called": "histogram_equalization",
+        "share_called_that": 0.79
+      }
+    ]
+  },
+  "open_set_cover_disjoint": {
+    "threshold": 0.42000000000000043,
+    "known_accepted": 0.9489685124864278,
+    "known_accuracy": 0.8653637350705755,
+    "unseen_rejected": 0.24875,
+    "auroc": 0.7888735070575461,
+    "per_attack": [
+      {
+        "attack": "gaussian_blur",
+        "rejected_as_unknown": 0.05,
+        "mean_confidence": 0.7314000000000002,
+        "most_often_called": "median_filter",
+        "share_called_that": 0.92
+      },
+      {
+        "attack": "sharpen",
+        "rejected_as_unknown": 0.6,
+        "mean_confidence": 0.44170000000000004,
+        "most_often_called": "text_addition",
+        "share_called_that": 0.26
+      },
+      {
+        "attack": "rescale",
+        "rejected_as_unknown": 0.18,
+        "mean_confidence": 0.6312,
+        "most_often_called": "median_filter",
+        "share_called_that": 0.85
+      },
+      {
+        "attack": "gamma_correction",
+        "rejected_as_unknown": 0.45,
+        "mean_confidence": 0.4654,
+        "most_often_called": "no_attack",
+        "share_called_that": 0.69
+      },
+      {
+        "attack": "brightness",
+        "rejected_as_unknown": 0.09,
+        "mean_confidence": 0.6824999999999999,
+        "most_often_called": "cropping",
+        "share_called_that": 0.34
+      },
+      {
+        "attack": "speckle_noise",
+        "rejected_as_unknown": 0.1,
+        "mean_confidence": 0.7312999999999998,
+        "most_often_called": "gaussian_noise",
+        "share_called_that": 0.87
+      },
+      {
+        "attack": "motion_blur",
+        "rejected_as_unknown": 0.08,
+        "mean_confidence": 0.6555,
+        "most_often_called": "median_filter",
+        "share_called_that": 0.92
+      },
+      {
+        "attack": "contrast_stretch",
+        "rejected_as_unknown": 0.44,
+        "mean_confidence": 0.4766999999999999,
+        "most_often_called": "histogram_equalization",
+        "share_called_that": 0.71
+      }
+    ]
+  },
+  "top_features": [
+    [
+      "median_res_zero",
+      0.06288780508253197
+    ],
+    [
+      "frac_saturated",
+      0.04625594406151775
+    ],
+    [
+      "median_res_absmean",
+      0.04327594697291687
+    ],
+    [
+      "frac_white",
+      0.04302797605548354
+    ],
+    [
+      "hist_bin_30",
+      0.03628615362282691
+    ],
+    [
+      "blockiness_h",
+      0.03552580033729813
+    ],
+    [
+      "frac_black",
+      0.03404176084357
+    ],
+    [
+      "border_black_bottom",
+      0.03176579632295913
+    ],
+    [
+      "median_res_std",
+      0.031328910485553724
+    ],
+    [
+      "used_levels",
+      0.030972413155377385
+    ],
+    [
+      "border_black_top",
+      0.03085210507292886
+    ],
+    [
+      "border_black_left",
+      0.027691352808954562
+    ],
+    [
+      "hist_bin_31",
+      0.027181822927001234
+    ],
+    [
+      "blockiness_v",
+      0.025616755532975755
+    ],
+    [
+      "median_res_gt32",
+      0.02461576683565496
+    ]
+  ],
+  "n_samples": 4500,
+  "n_covers": 20,
+  "test_covers_disjoint": [
+    0,
+    4,
+    15,
+    19
+  ],
+  "build_time_s": 28.241268124998896
+}

@@ -1,0 +1,12 @@
+circuit,family,stage,qubits,cx_all_to_all,depth_all_to_all,heavy_hex_distance,heavy_hex_lattice_qubits,cx_heavy_hex,depth_heavy_hex,routing_cx_overhead
+reported: watermark generation,paper,generation,354,,,,,,,
+reported: embedding,paper,embedding,400,,,,,,,
+reported: extraction,paper,extraction,400,,,,,,,
+base-v1 generation,base-v1,generation,146,557.0,158.0,9.0,193.0,3185.0,715.0,5.718132854578097
+base-v1 embedding,base-v1,embedding,64,96.0,21.0,7.0,115.0,201.0,51.0,2.09375
+base-v1 extraction,base-v1,extraction,88,112.0,28.0,7.0,115.0,344.0,126.0,3.0714285714285716
+lean generation,lean,generation,44,724.0,888.0,5.0,57.0,2838.0,2306.0,3.9198895027624308
+lean embedding,lean,embedding,40,0.0,1.0,5.0,57.0,0.0,1.0,0.0
+lean extraction,lean,extraction,41,50.0,75.0,5.0,57.0,144.0,120.0,2.88
+keyed embedding,keyed,embedding,44,603.0,718.0,5.0,57.0,2544.0,1551.0,4.218905472636816
+keyed blind verification,keyed,verification,45,669.0,870.0,5.0,57.0,2961.0,2041.0,4.426008968609866

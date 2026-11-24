@@ -1,0 +1,17 @@
+circuit,topology,p2_for_99pct,p2_for_50pct
+base-v1 generation,all-to-all,3.000000000000001e-05,0.0017690910031646918
+base-v1 generation,heavy-hex,,0.00036211108608309815
+base-v1 embedding,all-to-all,0.00030000000000000014,
+base-v1 embedding,heavy-hex,0.00011921733264724548,0.009154941187403903
+base-v1 extraction,all-to-all,0.00046117277779111015,
+base-v1 extraction,heavy-hex,0.00022056027947475106,
+lean generation,all-to-all,3.710171409845712e-05,0.0017473817808107838
+lean generation,heavy-hex,,0.0004903042394619992
+lean embedding,all-to-all,0.006694329500821696,
+lean embedding,heavy-hex,0.006694329500821696,
+lean extraction,all-to-all,0.00043798029791887607,
+lean extraction,heavy-hex,0.0001829855054943356,
+keyed embedding,all-to-all,2.4082246852807066e-05,0.0013393495950843235
+keyed embedding,heavy-hex,,0.00034425386559476404
+keyed blind verification,all-to-all,1.7828567508958334e-05,0.0013111852325303332
+keyed blind verification,heavy-hex,,0.0003376989987687639

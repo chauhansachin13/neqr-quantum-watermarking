@@ -1,0 +1,6 @@
+method,mse,psnr_db
+2-LSB replacement (this implementation),2.5,44.15140352195873
+optimal pixel adjustment (nearest pixel with the right LSBs),1.5,46.36989101812229
+best 4-D lattice code (D4),1.225648,47.24714599990178
+sphere-packing limit 2^(2R)/(2*pi*e),0.9367973043891067,48.41434728473352
+reported in the reference design (Man image),0.06547573176708858,59.97

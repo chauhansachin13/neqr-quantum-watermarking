@@ -1,0 +1,192 @@
+{
+  "table9": [
+    {
+      "image": "Lena",
+      "fidelity": 0.9999,
+      "trace_distance": 0.0,
+      "purity": 1.0233,
+      "t_min": 5.000125006249245e-05,
+      "t_max": 0.009999999999999449,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "Baboon",
+      "fidelity": 1.0,
+      "trace_distance": 0.0,
+      "purity": 1.0,
+      "t_min": 0.0,
+      "t_max": 0.0,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "Peppers",
+      "fidelity": 0.5231,
+      "trace_distance": 0.488,
+      "purity": 0.8842,
+      "t_min": 0.2767434756602606,
+      "t_max": 0.6905794668247819,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "Einstein",
+      "fidelity": 1.0,
+      "trace_distance": 0.0,
+      "purity": 1.0,
+      "t_min": 0.0,
+      "t_max": 0.0,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "Bird",
+      "fidelity": 0.989,
+      "trace_distance": 0.739,
+      "purity": 1.0,
+      "t_min": 0.005515208763854473,
+      "t_max": 0.1048808848170152,
+      "consistent": false,
+      "reason": "T = 0.739 outside [0.0055, 0.1049]"
+    },
+    {
+      "image": "Flower",
+      "fidelity": 0.9888,
+      "trace_distance": 0.102,
+      "purity": 0.9892,
+      "t_min": 0.005615768427515766,
+      "t_max": 0.10583005244258356,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "Man",
+      "fidelity": 0.5142,
+      "trace_distance": 0.0,
+      "purity": 0.783,
+      "t_min": 0.2829225983200977,
+      "t_max": 0.696993543729065,
+      "consistent": false,
+      "reason": "T = 0 outside [0.2829, 0.6970] (T = 0 implies identical states, hence F = 1)"
+    },
+    {
+      "image": "Moon",
+      "fidelity": 1.0,
+      "trace_distance": 0.0,
+      "purity": 1.0,
+      "t_min": 0.0,
+      "t_max": 0.0,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "Baby",
+      "fidelity": 0.3498,
+      "trace_distance": 0.4562,
+      "purity": 0.999,
+      "t_min": 0.4085610766951502,
+      "t_max": 0.8063498000247783,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "Boat",
+      "fidelity": 0.999,
+      "trace_distance": 0.0991,
+      "purity": 0.9992,
+      "t_min": 0.0005001250625390474,
+      "t_max": 0.031622776601683805,
+      "consistent": false,
+      "reason": "T = 0.0991 outside [0.0005, 0.0316]"
+    },
+    {
+      "image": "Airplane",
+      "fidelity": 1.0,
+      "trace_distance": 0.0,
+      "purity": 1.0,
+      "t_min": 0.0,
+      "t_max": 0.0,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "House1",
+      "fidelity": 1.0,
+      "trace_distance": 0.4378,
+      "purity": 1.3202,
+      "t_min": 0.0,
+      "t_max": 0.0,
+      "consistent": false,
+      "reason": "T = 0.4378 outside [0.0000, 0.0000] (F = 1 implies identical states, hence T = 0)"
+    },
+    {
+      "image": "Barbara",
+      "fidelity": 1.0,
+      "trace_distance": 0.0,
+      "purity": 1.0,
+      "t_min": 0.0,
+      "t_max": 0.0,
+      "consistent": true,
+      "reason": ""
+    },
+    {
+      "image": "House2",
+      "fidelity": 0.9892,
+      "trace_distance": 0.0,
+      "purity": 1.0,
+      "t_min": 0.005414659267491517,
+      "t_max": 0.10392304845413279,
+      "consistent": false,
+      "reason": "T = 0 outside [0.0054, 0.1039] (T = 0 implies identical states, hence F = 1)"
+    },
+    {
+      "image": "Aerial",
+      "fidelity": 0.523,
+      "trace_distance": 1.0,
+      "purity": 1.0,
+      "t_min": 0.2768126107294182,
+      "t_max": 0.6906518659932803,
+      "consistent": false,
+      "reason": "T = 1 outside [0.2768, 0.6907] (T = 1 implies orthogonal states, hence F = 0)"
+    },
+    {
+      "image": "Clown",
+      "fidelity": 1.0,
+      "trace_distance": 0.0,
+      "purity": 1.0,
+      "t_min": 0.0,
+      "t_max": 0.0,
+      "consistent": true,
+      "reason": ""
+    }
+  ],
+  "violations": 6,
+  "psnr_bounds": [
+    {
+      "method": "2-LSB replacement (this implementation)",
+      "mse": 2.5,
+      "psnr_db": 44.15140352195873
+    },
+    {
+      "method": "optimal pixel adjustment (nearest pixel with the right LSBs)",
+      "mse": 1.5,
+      "psnr_db": 46.36989101812229
+    },
+    {
+      "method": "best 4-D lattice code (D4)",
+      "mse": 1.225648,
+      "psnr_db": 47.24714599990178
+    },
+    {
+      "method": "sphere-packing limit 2^(2R)/(2*pi*e)",
+      "mse": 0.9367973043891067,
+      "psnr_db": 48.41434728473352
+    },
+    {
+      "method": "reported in the reference design (Man image)",
+      "mse": 0.06547573176708858,
+      "psnr_db": 59.97
+    }
+  ]
+}
