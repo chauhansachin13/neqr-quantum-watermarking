@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NEQR Quantum Watermarking</title>
+  <meta name="description" content="Interactive demo: reversible-circuit quantum image watermarking with keyed blind verification, self-recovery and an AI attack detector.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23eee' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- left rail: wordmark + vertical navigation ------------------------------ -->
+  <aside class="rail">
+    <a class="wordmark" href="#top" aria-label="NEQR quantum watermarking, back to top">neqr&thinsp;·&thinsp;qwm</a>
+    <nav class="rail-nav" aria-label="Sections">
+      <a href="#step1"><span>01</span>Embed</a>
+      <a href="#step2"><span>02</span>Attack</a>
+      <a href="#step3"><span>03</span>Verify</a>
+      <a href="#step4"><span>04</span>Identify</a>
+      <a href="#step5"><span>05</span>Circuits</a>
+    </nav>
+    <span id="status" class="status">connecting&hellip;</span>
+  </aside>
+
+  <a class="cta-circle" href="#step1" aria-label="Start the demo">Run the<br>demo</a>
+
+  <!-- hero ---------------------------------------------------------------- -->
+  <header class="hero" id="top">
+    <div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
+    <figure class="hero-visual" aria-hidden="true"><img id="hero-img" alt=""></figure>
+    <div class="hero-copy">
+      <h1 class="display">We hide, verify and repair images with reversible quantum&nbsp;logic.</h1>
+      <p class="hero-lede">NEQR encoding &middot; RPA / RPS / D4 / QE circuits &middot; keyed blind authentication &middot; self-recovery &middot; Random-Forest attack detector. Everything below runs live on this machine.</p>
+    </div>
+    <a class="scroll-cue" href="#metrics">Scroll<svg viewBox="0 0 12 22" aria-hidden="true"><path d="M6 0v20M1 15l5 5 5-5"/></svg></a>
+    <div class="corner-dots">
+      <a href="https://doi.org/10.1016/j.array.2026.101035" target="_blank" rel="noopener" title="Reference design">doi</a>
+      <a href="#step5" title="Quantum circuits">qc</a>
+      <button id="theme" type="button" title="Switch light / dark">&#9680;</button>
+    </div>
+  </header>
+
+  <!-- metric strip -------------------------------------------------------- -->
+  <section class="metrics" id="metrics" aria-label="Key numbers">
+    <div><b>44.2<small>dB</small></b><span>PSNR at 2 bits per pixel</span></div>
+    <div><b>2<sup>&minus;8</sup></b><span>chance a forged 2&times;2 block passes</span></div>
+    <div><b>44<small>qubits</small></b><span>per block, vs 354 reported</span></div>
+    <div><b>0</b><span>false alarms on untouched blocks</span></div>
+    <div><b>86.5<small>%</small></b><span>attack type on cover images never seen in training</span></div>
+  </section>
+
+  <main>
+    <!-- 01 --------------------------------------------------------------- -->
+    <section class="chapter" id="step1">
+      <div class="chapter-head">
+        <span class="num">01</span>
+        <h2>Choose a cover<br>and a scheme</h2>
+        <p class="lead">Pick a test image (or upload one) and how the watermark is built. The two <em>v2</em> schemes are blind: the key alone verifies them.</p>
+      </div>
+      <div class="chapter-body">
+        <div class="controls">
+          <label class="field">Test image <select id="image"></select></label>
+          <label class="field file">or upload <input type="file" id="upload" accept="image/*"></label>
+        </div>
+        <div class="modes" id="modes"></div>
+        <div class="controls" id="keyrow">
+          <label class="field">Secret key <input id="key" value="demo-key" autocomplete="off" spellcheck="false"></label>
+          <label class="field">Nonce (image ID) <input id="nonce" placeholder="defaults to the image name" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <button class="btn" id="embed">Embed watermark <span class="arrow">&rarr;</span></button>
+        <div class="images three" id="embed-out" hidden>
+          <figure><div class="pick"><img id="cover" alt="cover"><div id="pickbox" class="pickbox" hidden></div></div><figcaption>Cover &mdash; <em>click a 2&times;2 block for 05</em></figcaption></figure>
+          <figure><img id="watermarked" alt="watermarked"><figcaption>Watermarked</figcaption></figure>
+          <figure><img id="difference" alt="difference"><figcaption>|Difference| &times; 64</figcaption></figure>
+        </div>
+        <div class="chips" id="embed-metrics"></div>
+        <a class="next" href="#step2">Next step <span>&rarr;</span></a>
+      </div>
+    </section>
+
+    <!-- 02 --------------------------------------------------------------- -->
+    <section class="chapter" id="step2">
+      <div class="chapter-head">
+        <span class="num">02</span>
+        <h2>Attack<br>the image</h2>
+        <p class="lead">Paint on it, apply a local forgery, or run one of the nine global attacks the AI module was trained on.</p>
+      </div>
+      <div class="chapter-body">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="paint">Paint on it</button>
+          <button class="tab" data-tab="local">Local edit</button>
+          <button class="tab" data-tab="global">Global attack</button>
+          <button class="tab" data-tab="none">No attack</button>
+        </div>
+        <div class="tabpane" data-pane="paint">
+          <p class="hint">Draw on the watermarked image, then apply the edit.</p>
+          <div class="paintbox"><canvas id="canvas" width="256" height="256"></canvas></div>
+          <div class="controls">
+            <label class="field">Brush <input type="range" id="brush" min="2" max="24" value="8"></label>
+            <div class="swatches" id="swatches">
+              <button class="sw active" data-v="255" style="background:#fff" aria-label="white"></button>
+              <button class="sw" data-v="128" style="background:#808080" aria-label="grey"></button>
+              <button class="sw" data-v="0" style="background:#000" aria-label="black"></button>
+            </div>
+            <button class="btn ghost" id="paint-reset">Reset</button>
+            <button class="btn" id="paint-apply">Apply edit <span class="arrow">&rarr;</span></button>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="local" hidden>
+          <div class="controls">
+            <label class="field">Edit <select id="local-name"></select></label>
+            <label class="field">Size <input type="range" id="local-frac" min="0.05" max="0.4" step="0.01" value="0.2"><span id="local-frac-v">0.20</span></label>
+            <button class="btn" id="local-apply">Apply <span class="arrow">&rarr;</span></button>
+          </div>
+          <p class="hint"><b>LSB-preserving splice</b> keeps every embedded bit: the base scheme cannot see it, the keyed schemes can.</p>
+        </div>
+        <div class="tabpane" data-pane="global" hidden>
+          <div class="controls">
+            <label class="field">Attack <select id="global-name"></select></label>
+            <label class="field" id="global-param-wrap"><span id="global-param-label">param</span> <input type="range" id="global-param"><span id="global-param-v"></span></label>
+            <button class="btn" id="global-apply">Apply <span class="arrow">&rarr;</span></button>
+          </div>
+          <p class="hint">LSB watermarks are fragile by design, so global attacks fail most blocks.</p>
+        </div>
+        <div class="tabpane" data-pane="none" hidden>
+          <button class="btn" id="none-apply">Use the untouched watermarked image <span class="arrow">&rarr;</span></button>
+        </div>
+        <div class="images one" id="attack-out" hidden>
+          <figure><img id="attacked" alt="attacked"><figcaption id="attack-caption">Attacked</figcaption></figure>
+        </div>
+        <a class="next" href="#step3">Next step <span>&rarr;</span></a>
+      </div>
+    </section>
+
+    <!-- 03 --------------------------------------------------------------- -->
+    <section class="chapter" id="step3">
+      <div class="chapter-head">
+        <span class="num">03</span>
+        <h2>Verify<br>and repair</h2>
+        <p class="lead">Every block is checked against what the key says it must contain. The self-recovery scheme then rebuilds the failed blocks.</p>
+      </div>
+      <div class="chapter-body">
+        <button class="btn" id="verify">Verify <span class="arrow">&rarr;</span></button>
+        <div id="verdict" class="verdict" hidden></div>
+        <div class="images two" id="verify-out" hidden>
+          <figure><img id="overlay" alt="tamper map"><figcaption>Failed blocks in red</figcaption></figure>
+          <figure id="recovered-fig" hidden><img id="recovered" alt="repaired"><figcaption id="recovered-caption">Repaired</figcaption></figure>
+        </div>
+        <p class="note" id="verify-note"></p>
+        <a class="next" href="#step4">Next step <span>&rarr;</span></a>
+      </div>
+    </section>
+
+    <!-- 04 --------------------------------------------------------------- -->
+    <section class="chapter" id="step4">
+      <div class="chapter-head">
+        <span class="num">04</span>
+        <h2>Which attack<br>was it?</h2>
+        <p class="lead" id="clf-info">The Random Forest of the reference design, on a 137-value distortion descriptor.</p>
+      </div>
+      <div class="chapter-body">
+        <button class="btn" id="classify">Identify the attack <span class="arrow">&rarr;</span></button>
+        <div id="bars" class="bars"></div>
+        <a class="next" href="#step5">Next step <span>&rarr;</span></a>
+      </div>
+    </section>
+
+    <!-- 05 --------------------------------------------------------------- -->
+    <section class="chapter" id="step5">
+      <div class="chapter-head">
+        <span class="num">05</span>
+        <h2>Inside the<br>quantum circuits</h2>
+        <p class="lead" id="block-hint">Click any 2&times;2 block on the cover in 01. It runs through the NEQR encoder and every reversible circuit, simulated exactly.</p>
+      </div>
+      <div class="chapter-body">
+        <div id="block-out" hidden>
+          <div class="blockgrid">
+            <div>
+              <h3>Block <span id="block-id"></span></h3>
+              <table class="kv" id="block-kv"></table>
+            </div>
+            <div>
+              <h3>Circuits</h3>
+              <table class="tbl" id="block-circuits"><thead><tr><th>Circuit</th><th>Qubits</th><th>Output</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+          <h3>NEQR encoding of this block &mdash; 8 intensity + 2 position qubits</h3>
+          <div class="neqr"><img id="neqr" alt="NEQR circuit"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div>
+      <span class="wordmark small">neqr&thinsp;·&thinsp;qwm</span>
+      <p>Simulation-level study on classical hardware. No quantum speed-up is claimed.</p>
+    </div>
+    <div>
+      <h4>Reference design</h4>
+      <p><a href="https://doi.org/10.1016/j.array.2026.101035" target="_blank" rel="noopener">Sahu et al., Array 31 (2026) 101035</a></p>
+    </div>
+    <div>
+      <h4>Run it</h4>
+      <p><code>qwm serve</code> &middot; <code>qwm --help</code></p>
+    </div>
+  </footer>
+  <div id="toast" class="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>
