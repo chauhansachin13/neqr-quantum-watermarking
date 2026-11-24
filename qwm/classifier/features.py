@@ -119,6 +119,20 @@ def image_descriptors(image: np.ndarray, size: int = 256) -> np.ndarray:
     return np.asarray(feats, dtype=np.float32)
 
 
+def descriptor_names() -> list[str]:
+    """Names of the entries of :func:`image_descriptors`, in order."""
+    names = [f"hist_bin_{i:02d}" for i in range(32)]
+    names += ["entropy", "hist_spread", "used_levels", "mean", "std", "skewness", "kurtosis"]
+    names += ["frac_black", "frac_white", "border_black_top", "border_black_bottom", "border_black_left", "border_black_right", "frac_saturated"]
+    names += ["median_res_absmean", "median_res_std", "median_res_kurtosis", "median_res_gt8", "median_res_gt32", "median_res_zero"]
+    names += ["gradient_mean", "gradient_std", "laplacian_var", "flat_fraction"]
+    names += ["hf_energy_0.10", "hf_energy_0.25", "hf_energy_0.50", "hf_energy_0.75", "blockiness_h", "blockiness_v"]
+    names += ["bitplane0_mean", "bitplane1_mean", "bitplane2_mean", "bitplane0_eq_1", "bitplane0_hcorr", "bitplane0_vcorr"]
+    names += [f"local_var_p{p}" for p in (5, 25, 50, 75, 95)]
+    names += [f"thumb_{r}{c}" for r in range(8) for c in range(8)]
+    return names
+
+
 def extract_features(image: np.ndarray, kind: str = "pixels", size: int = 256) -> np.ndarray:
     if kind == "pixels":
         return image_to_feature(image, size)

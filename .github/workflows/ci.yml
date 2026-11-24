@@ -30,3 +30,7 @@ jobs:
           qwm demo
           qwm resources --out /tmp/qwm
           qwm evaluate --images camera,coins --size 64 --out /tmp/qwm
+          qwm paper-checks --out /tmp/qwm/checks
+          qwm embed camera --mode keyed --key ci-key --nonce ci -o /tmp/qwm/keyed.png
+          qwm verify /tmp/qwm/keyed.png --mode keyed --key ci-key --nonce ci
+          qwm tamper-study --images camera,coins,moon --repeats 1 --out /tmp/qwm/tamper

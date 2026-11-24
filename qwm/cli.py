@@ -58,20 +58,63 @@ def cmd_demo(args) -> int:
     return 0
 
 
+KEYED_MODES = ("keyed", "recovery")
+
+
+def _keyed_scheme(mode: str, key: str | None, nonce: str):
+    from qwm.secure import SecureWatermark, SelfRecoveringWatermark
+
+    if not key:
+        raise SystemExit(f"--key is required for --mode {mode}")
+    return SecureWatermark(key, nonce) if mode == "keyed" else SelfRecoveringWatermark(key, nonce)
+
+
 def cmd_embed(args) -> int:
     from qwm.data import load_image, save_image
     from qwm.metrics.image import quality_report
     from qwm.watermark import embed_image
 
     cover = load_image(args.image, args.size)
-    watermarked, wb = embed_image(cover, mode=args.mode)
+    if args.mode in KEYED_MODES:
+        watermarked, wb = _keyed_scheme(args.mode, args.key, args.nonce).embed(cover), None
+    else:
+        watermarked, wb = embed_image(cover, mode=args.mode)
     out = save_image(watermarked, args.output)
     q = quality_report(cover, watermarked)
     print(f"watermarked image written to {out}  (PSNR {q['psnr']:.2f} dB, SSIM {q['ssim']:.4f}, mode={args.mode})")
-    if args.save_watermark:
+    if args.save_watermark and wb is not None:
         np.save(args.save_watermark, wb)
         print(f"watermark bits saved to {args.save_watermark} shape={wb.shape}")
+    elif args.mode in KEYED_MODES:
+        print("blind scheme: verification needs only the key and nonce (no reference bits)")
     return 0
+
+
+def cmd_verify(args) -> int:
+    from qwm.data import load_image, save_image
+    from qwm.studies import _overlay
+
+    img = load_image(args.image, None)
+    scheme = _keyed_scheme(args.mode, args.key, args.nonce)
+    if args.mode == "keyed":
+        res = scheme.verify(img)
+        tamper, block = res.tamper_map, 2
+    else:
+        res = scheme.recover(img)
+        tamper, block = res.tamper_map, 4
+    n_bad, n = int(tamper.sum()), int(tamper.size)
+    verdict = "AUTHENTIC" if n_bad == 0 else f"TAMPERED: {n_bad} of {n} blocks ({100 * n_bad / n:.2f} %) failed"
+    print(f"{args.image}: {verdict}")
+    if args.overlay:
+        import cv2
+
+        Path(args.overlay).parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(args.overlay), cv2.cvtColor(_overlay(img, tamper, block), cv2.COLOR_RGB2BGR))
+        print(f"tamper map written to {args.overlay}")
+    if args.mode == "recovery" and n_bad and args.recovered:
+        save_image(res.recovered, args.recovered)
+        print(f"repaired image written to {args.recovered} ({100 * res.restored_fraction:.1f} % of failed blocks rebuilt from recovery codes)")
+    return 0 if n_bad == 0 else 2
 
 
 def cmd_extract(args) -> int:
@@ -175,6 +218,61 @@ def cmd_draw(args) -> int:
     return 0
 
 
+def cmd_tamper_study(args) -> int:
+    from qwm.studies import tamper_study
+
+    out = tamper_study(_images_arg(args.images, args.offline), fraction=args.fraction, repeats=args.repeats, out_dir=args.out)
+    piv = out["summary"].pivot(index="manipulation", columns="scheme", values="tpr")
+    print("block-level detection rate (TPR); false-positive rate is 0 for every scheme on untouched blocks:")
+    print(piv.to_string(float_format=lambda v: f"{v:.3f}"))
+    print("\nself-recovery (PSNR in the edited region, dB):")
+    print(out["recovery"][["manipulation", "psnr_attacked_region", "psnr_recovered_region", "restored_fraction"]].to_string(index=False, float_format=lambda v: f"{v:.2f}"))
+    return 0
+
+
+def cmd_nisq(args) -> int:
+    from qwm.studies import DEFAULT_P2, nisq_study
+
+    p_values = [float(v) for v in args.p2.split(",")] if args.p2 else DEFAULT_P2
+    out = nisq_study(p_values, shots=args.shots, out_dir=args.out, verbose=True, workers=args.workers)
+    print(out["resources"].to_string(index=False))
+    print(out["thresholds"].to_string(index=False))
+    return 0
+
+
+def cmd_classifier_benchmark(args) -> int:
+    from qwm.studies import classifier_study
+
+    sizes = (64,) if args.quick else (64, 256)
+    out = classifier_study(samples_per_class=args.samples_per_class, seed=args.seed, unseen_per_attack=args.unseen_per_attack, pixel_sizes=sizes, out_dir=args.out)
+    m = out["models"]
+    print(m.pivot_table(index=["features", "model"], columns="protocol", values="accuracy").to_string(float_format=lambda v: f"{v:.4f}"))
+    o = out["open_set"]
+    print(f"open set: {100 * o['unseen_rejected']:.1f} % of unseen-attack images rejected at a threshold keeping {100 * o['known_accepted']:.1f} % of known ones (AUROC {o['auroc']:.3f})")
+    return 0
+
+
+def cmd_paper_checks(args) -> int:
+    from qwm.studies import paper_check_study
+
+    out = paper_check_study(args.out)
+    print(f"Table 9: {out['violations']} of {len(out['table9'])} rows violate the Fuchs-van de Graaf inequalities")
+    for r in out["table9"]:
+        if not r["consistent"]:
+            print(f"  {r['image']:9s} F={r['fidelity']:<7g} T={r['trace_distance']:<7g} -> {r['reason']}")
+    print("PSNR limits for 2 bits per pixel:")
+    for b in out["psnr_bounds"]:
+        print(f"  {b['method']:62s} MSE {b['mse']:7.4f}  PSNR {b['psnr_db']:6.2f} dB")
+    return 0
+
+
+def cmd_serve(args) -> int:
+    from qwm.web.server import serve
+
+    serve(host=args.host, port=args.port, open_browser=not args.no_browser)
+    return 0
+
+
 def cmd_download(args) -> int:
     from qwm.data import download_standard_images
 
@@ -196,10 +294,21 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("embed", help="watermark an image")
     s.add_argument("image", help="image name (lena, baboon, camera, ...) or path")
     s.add_argument("-o", "--output", default="watermarked.png")
-    s.add_argument("--mode", choices=("paper", "lsb"), default="paper")
+    s.add_argument("--mode", choices=("paper", "lsb", "keyed", "recovery"), default="paper", help="paper/lsb = base scheme; keyed/recovery = proposed blind schemes")
+    s.add_argument("--key", help="secret key (keyed / recovery modes)")
+    s.add_argument("--nonce", default="", help="per-image nonce, e.g. an image ID (keyed / recovery modes)")
     s.add_argument("--size", type=int, default=256)
-    s.add_argument("--save-watermark", help="save the generated watermark bits as .npy")
+    s.add_argument("--save-watermark", help="save the generated watermark bits as .npy (base scheme)")
     s.set_defaults(func=cmd_embed)
+
+    s = sub.add_parser("verify", help="blind tamper check (and repair) of an image watermarked in keyed / recovery mode")
+    s.add_argument("image")
+    s.add_argument("--mode", choices=KEYED_MODES, default="keyed")
+    s.add_argument("--key", required=True)
+    s.add_argument("--nonce", default="")
+    s.add_argument("--overlay", help="write the image with failed blocks highlighted")
+    s.add_argument("--recovered", help="recovery mode: write the repaired image")
+    s.set_defaults(func=cmd_verify)
 
     s = sub.add_parser("extract", help="extract the watermark bits from a watermarked image")
     s.add_argument("image")
@@ -247,6 +356,39 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("draw", help="render the circuits to PNG files")
     s.add_argument("--out", type=Path, default=DEFAULT_OUT / "figures")
     s.set_defaults(func=cmd_draw)
+
+    s = sub.add_parser("tamper-study", help="blind tamper localisation, forgery and self-recovery study (v2)")
+    s.add_argument("--images", help="comma separated image names/paths")
+    s.add_argument("--offline", action="store_true")
+    s.add_argument("--fraction", type=float, default=0.2, help="side of the edited square relative to the image side")
+    s.add_argument("--repeats", type=int, default=3)
+    s.add_argument("--out", type=Path, default=DEFAULT_OUT / "tamper")
+    s.set_defaults(func=cmd_tamper_study)
+
+    s = sub.add_parser("nisq", help="heavy-hex compilation and noisy Aer simulation of every block circuit (v2)")
+    s.add_argument("--p2", help="comma separated two-qubit error rates")
+    s.add_argument("--shots", type=int, default=2000)
+    s.add_argument("--workers", type=int, default=None, help="parallel worker processes (default: cores - 1)")
+    s.add_argument("--out", type=Path, default=DEFAULT_OUT / "nisq")
+    s.set_defaults(func=cmd_nisq)
+
+    s = sub.add_parser("classifier-benchmark", help="cover-disjoint testing, baselines + McNemar, open-set detection (v2)")
+    s.add_argument("--samples-per-class", type=int, default=500)
+    s.add_argument("--unseen-per-attack", type=int, default=100)
+    s.add_argument("--seed", type=int, default=42)
+    s.add_argument("--quick", action="store_true", help="skip the 65,536-d pixel features")
+    s.add_argument("--out", type=Path, default=DEFAULT_OUT / "classifier" / "benchmark")
+    s.set_defaults(func=cmd_classifier_benchmark)
+
+    s = sub.add_parser("paper-checks", help="consistency checks of reported numbers (Table 9, PSNR bound)")
+    s.add_argument("--out", type=Path, default=DEFAULT_OUT / "paper_checks")
+    s.set_defaults(func=cmd_paper_checks)
+
+    s = sub.add_parser("serve", help="interactive web demo on http://localhost:8765")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8765)
+    s.add_argument("--no-browser", action="store_true")
+    s.set_defaults(func=cmd_serve)
 
     s = sub.add_parser("download-images", help="download the standard grayscale test images")
     s.set_defaults(func=cmd_download)
