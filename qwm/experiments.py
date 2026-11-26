@@ -241,8 +241,10 @@ def attack_classification(samples_per_class: int = 500, size: int = 256, feature
             import joblib
 
             joblib.dump(model, out_dir / "random_forest.joblib")
-        except Exception:  # pragma: no cover - optional
-            pass
+        except Exception as exc:  # pragma: no cover - optional
+            import logging
+
+            logging.getLogger(__name__).debug("optional joblib save skipped: %s", exc)
     return summary
 
 

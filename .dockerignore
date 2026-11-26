@@ -1,0 +1,17 @@
+.git/
+.github/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+__pycache__/
+*.pyc
+build/
+dist/
+*.egg-info/
+results/
+data/images/*.png
+!data/images/.gitkeep
+*.DS_Store

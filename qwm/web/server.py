@@ -98,6 +98,7 @@ def overlay(img: np.ndarray, tamper: np.ndarray, block: int) -> np.ndarray:
 # --------------------------------------------------------------------------- #
 class DemoApp:
     def __init__(self, prepare_classifier: bool = True) -> None:
+        self.started_at = time.monotonic()
         self.sessions: OrderedDict[str, dict] = OrderedDict()
         self.lock = threading.Lock()
         self.classifier = None
@@ -543,6 +544,22 @@ def make_handler(app: DemoApp):
 
         def do_GET(self):  # noqa: N802
             path = self.path.split("?", 1)[0]
+            if path == "/api/health":
+                from qwm.version import __version__
+
+                with app.lock:
+                    n_sessions = len(app.sessions)
+                return self._json(
+                    200,
+                    {
+                        "status": "ok",
+                        "version": __version__,
+                        "uptime_s": round(time.monotonic() - app.started_at, 2),
+                        "active_sessions": n_sessions,
+                        "max_sessions": MAX_SESSIONS,
+                        "classifier_ready": app.classifier is not None,
+                    },
+                )
             if path == "/api/meta":
                 return self._json(200, app.meta())
             if path == "/api/resources":

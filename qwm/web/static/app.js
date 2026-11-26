@@ -1,17 +1,17 @@
 "use strict";
-// NEQR quantum watermarking dashboard - clean modern Nixtio-inspired GUI.
+// NEQR quantum watermarking studio - editorial hero & 1-click self-healing UX.
 
 const $ = (id) => document.getElementById(id);
-const state = { session: null, mode: "keyed-opt", meta: null, paintValue: 255, imageSize: 256, blockRow: 0, blockCol: 0 };
+const state = { session: null, mode: "recovery-dual", meta: null, paintValue: 255, imageSize: 256, blockRow: 0, blockCol: 0 };
 
 const MODE_INFO = {
-  paper: { title: "Base: literal rule", tag: "base", text: "RPA → XOR → QE → Pauli-X rule" },
-  lsb: { title: "Base: LSB replacement", tag: "base", text: "PPB ⊕ AA (needs reference bits)" },
-  opap: { title: "Base: OPAP", tag: "v3", text: "±4 MSB adjustment (~46.4 dB)" },
-  keyed: { title: "Keyed blind (2×2)", tag: "v2", text: "MAC blind verify (2^-8 prob)" },
-  "keyed-opt": { title: "Keyed optimal", tag: "v3", text: "81-coset blind (~46.4 dB)" },
-  recovery: { title: "Self-recovery (4×4)", tag: "v2", text: "Partner AA code + 12-bit MAC" },
-  "recovery-dual": { title: "Dual-partner Haar (8×8)", tag: "v3", text: "Primary + backup Haar (2^-16)" },
+  "recovery-dual": { title: "Auto-Heal (8×8 Haar)", tag: "best", text: "Invisible + self-healing · 2^-16 check" },
+  "keyed-opt": { title: "Max Quality Blind", tag: "v3", text: "~46.4 dB PSNR · blind 2^-8 MAC" },
+  opap: { title: "OPAP Base", tag: "v3", text: "~46.4 dB · needs reference bits" },
+  keyed: { title: "Keyed Blind (2×2)", tag: "v2", text: "Block MAC tamper detection" },
+  recovery: { title: "Auto-Heal (4×4)", tag: "v2", text: "Partner AA recovery + 12-bit MAC" },
+  lsb: { title: "LSB Replacement", tag: "base", text: "~44.1 dB reference LSB embedding" },
+  paper: { title: "Literal Paper Rule", tag: "base", text: "RPA → XOR → QE → Pauli-X rule" },
 };
 
 const GLOBAL_PARAMS = {
@@ -58,22 +58,6 @@ async function busy(button, fn) {
 const fmt = (v, d = 2) => (v === null || v === undefined ? "–" : !isFinite(v) ? "∞" : Number(v).toFixed(d));
 const chip = (label, value) => `<span class="chip"><b>${value}</b>${label}</span>`;
 
-function renderDotMatrix(values = [0.35, 0.55, 0.45, 0.72, 0.30, 0.50, 0.85, 0.65, 0.48]) {
-  const box = $("dot-matrix");
-  if (!box) return;
-  box.innerHTML = values
-    .map((v) => {
-      const n = Math.max(1, Math.min(5, Math.round(v * 5)));
-      let dots = "";
-      for (let i = 0; i < 5; i++) {
-        const cls = i < n ? (n >= 4 && i === n - 1 ? "dm-dot peak" : "dm-dot on") : "dm-dot";
-        dots += `<span class="${cls}"></span>`;
-      }
-      return `<div class="dm-col">${dots}</div>`;
-    })
-    .join("");
-}
-
 // --------------------------------------------------------------------------- setup
 function renderModes() {
   const box = $("modes");
@@ -94,7 +78,6 @@ function renderModes() {
 
 async function init() {
   renderModes();
-  renderDotMatrix();
   try {
     const meta = await api("/api/meta");
     state.meta = meta;
@@ -106,7 +89,7 @@ async function init() {
     for (const a of meta.attacks) $("global-name").add(new Option(a.label, a.name));
     $("global-name").value = "jpeg_compression";
     setGlobalParam();
-    $("status").textContent = "Live · local simulation";
+    $("status").textContent = "Ready · local quantum lab";
     pollClassifier();
     await embed();
   } catch (err) {
@@ -124,7 +107,7 @@ async function pollClassifier() {
 
 // --------------------------------------------------------------------------- step 1
 async function readUpload() {
-  const f = $("upload").files[0];
+  const f = $("upload").files[0] || ($("upload-dup") && $("upload-dup").files[0]);
   if (!f) return null;
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -144,29 +127,34 @@ async function embed() {
   $("cover").src = r.cover;
   $("watermarked").src = r.watermarked;
   $("dl-watermarked").href = r.watermarked;
-  setHero(r.watermarked);
+  $("hero-img").src = r.watermarked;
+  $("tile-attack-img").src = r.watermarked;
   $("difference").src = r.difference;
   $("embed-out").hidden = false;
   $("pickbox").hidden = true;
   const m = r.metrics;
   $("hero-psnr").textContent = fmt(m.psnr, 2);
-  $("hero-delta").textContent = `${fmt(m.psnr - 44.15, 2) >= 0 ? "+" : ""}${fmt(m.psnr - 44.15, 2)} dB`;
-  $("hero-side").textContent = m.side_information_bits ? `${m.side_information_bits.toLocaleString()} bits` : "Key only";
-  const psnrShare = Math.min(100, Math.max(20, (m.psnr / 48.4) * 100));
-  $("m-psnr-pct").textContent = `${fmt(psnrShare, 0)}%`;
-  $("bar-psnr").style.width = `${psnrShare}%`;
+  const delta = m.psnr - 44.15;
+  $("hero-delta").textContent = `${delta >= 0 ? "+" : ""}${fmt(delta, 2)} dB`;
+  $("hero-side").textContent = m.side_information_bits ? `${m.side_information_bits.toLocaleString()} bits` : state.mode === "recovery-dual" ? "2^-16 MAC" : "Key only";
   $("m-ssim-pct").textContent = `${fmt(m.ssim * 100, 1)}%`;
-  $("bar-ssim").style.width = `${Math.min(100, m.ssim * 100)}%`;
 
   $("embed-metrics").innerHTML =
     chip("PSNR", `${fmt(m.psnr)} dB`) + chip("SSIM", fmt(m.ssim, 4)) + chip("MSE", fmt(m.mse, 3)) +
-    chip("Time", `${fmt(m.embed_ms, 1)} ms`);
+    chip("Speed", `${fmt(m.embed_ms, 1)} ms`);
+
+  // Keep top hero strip informative and human-readable
+  const schemeName = (MODE_INFO[state.mode] || {}).title || state.mode;
+  $("hero-story").textContent = `Protected with ${schemeName} at ${fmt(m.psnr, 1)} dB PSNR — click ▶ on the next card to test a forgery and heal it back.`;
+  $("tile4-title").innerHTML = "Protected<br>Ready";
+  $("tile4-sub").textContent = `${fmt(m.psnr, 1)} dB · SSIM ${fmt(m.ssim, 3)} · 2 bpp`;
+
   loadCanvas(r.watermarked);
   $("attacked").src = r.watermarked;
   $("attack-caption").textContent = "Untouched watermarked image";
   $("attack-out").hidden = false;
   for (const id of ["verify-out", "verdict"]) $(id).hidden = true;
-  $("verify-note").textContent = "";
+  $("verify-note").textContent = "Apply any tamper on the left or click Verify & Repair to check authenticity.";
   $("bars").innerHTML = "";
   $("block-out").hidden = true;
 }
@@ -228,7 +216,7 @@ function setupPaint() {
     last = p;
   };
   c.addEventListener("pointerdown", (e) => {
-    if (!state.session) return toast("Embed an image first");
+    if (!state.session) return toast("Protect an image first");
     drawing = true;
     last = null;
     c.setPointerCapture(e.pointerId);
@@ -262,9 +250,10 @@ function setGlobalParam() {
 }
 
 async function attack(body) {
-  if (!state.session) throw new Error("Embed an image first");
+  if (!state.session) throw new Error("Protect an image first");
   const r = await api("/api/attack", { session: state.session, seed: Math.floor(Math.random() * 1e6), ...body });
   $("attacked").src = r.attacked;
+  $("tile-attack-img").src = r.attacked;
   $("attack-caption").textContent = `${r.label} · ${fmt(r.psnr)} dB · ${r.changed_pixels.toLocaleString()} px`;
   $("attack-out").hidden = false;
   for (const id of ["verify-out", "verdict"]) $(id).hidden = true;
@@ -274,7 +263,7 @@ async function attack(body) {
 
 // --------------------------------------------------------------------------- steps 3-5
 async function verify() {
-  if (!state.session) throw new Error("Embed an image first");
+  if (!state.session) throw new Error("Protect an image first");
   const r = await api("/api/verify", { session: state.session });
   $("overlay").src = r.overlay;
   $("dl-overlay").href = r.overlay;
@@ -286,27 +275,34 @@ async function verify() {
   const pct = (100 * r.blocks_failed) / r.blocks_total;
   v.innerHTML = ok
     ? `Authentic — all ${r.blocks_total.toLocaleString()} blocks verified`
-    : `Tampered — ${r.blocks_failed.toLocaleString()} / ${r.blocks_total.toLocaleString()} ${r.block_size}×${r.block_size} blocks failed (${fmt(pct)}%)`;
+    : `Tampered — ${r.blocks_failed.toLocaleString()} / ${r.blocks_total.toLocaleString()} ${r.block_size}×${r.block_size} blocks flagged (${fmt(pct)}%)`;
   if (r.ber !== undefined) v.innerHTML += `<small>BER vs reference: ${fmt(r.ber, 4)}</small>`;
   const rf = $("recovered-fig");
   if (r.recovered) {
     $("recovered").src = r.recovered;
     $("dl-recovered").href = r.recovered;
+    $("hero-img").src = r.recovered;
     $("recovered-caption").textContent = `${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB (${fmt(100 * r.restored_fraction, 0)}% restored)`;
+    $("tile4-title").innerHTML = `${fmt(100 * r.restored_fraction, 0)}%<br>Healed`;
+    $("tile4-sub").textContent = `${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB PSNR`;
+    $("hero-story").textContent = `Detected ${r.blocks_failed} altered blocks (${fmt(pct)}%) and rebuilt damaged content from ${fmt(r.psnr_attacked)} to ${fmt(r.psnr_recovered)} dB.`;
     rf.hidden = false;
-  } else rf.hidden = true;
+  } else {
+    rf.hidden = true;
+    $("tile4-title").innerHTML = ok ? "Authentic<br>Verified" : "Forgery<br>Spotted";
+    $("tile4-sub").textContent = ok ? "0 tampered blocks" : `${r.blocks_failed} blocks flagged (${fmt(pct)}%)`;
+  }
   $("verify-note").textContent = r.note || "";
 }
 
 async function classify() {
-  if (!state.session) throw new Error("Embed an image first");
+  if (!state.session) throw new Error("Protect an image first");
   const r = await api("/api/classify", { session: state.session });
   $("clf-info").textContent = r.info;
   if (!r.ready) return toast("Classifier still warming up — retry in a moment");
   $("clf-top-pct").textContent = `${fmt(100 * r.confidence, 1)}%`;
   $("clf-top-lbl").textContent = r.predicted;
   $("clf-ood-pill").textContent = r.is_unknown ? "OOD Flagged" : "In-distribution";
-  renderDotMatrix(r.probabilities.slice(0, 9).map((p) => Math.max(0.15, p.p)));
   const oodPill = r.is_unknown
     ? `<span class="ood-badge warn">OOD (${fmt(100 * r.confidence, 1)}% &lt; ${fmt(100 * r.threshold, 1)}%)</span>`
     : `<span class="ood-badge safe">Known (${fmt(100 * r.confidence, 1)}% &ge; ${fmt(100 * r.threshold, 1)}%)</span>`;
@@ -315,7 +311,7 @@ async function classify() {
     .map(
       (p, i) => `<div class="bar ${i === 0 ? "best" : ""}"><span>${p.name}</span><div class="track"><div class="fill" style="width:${(100 * p.p).toFixed(1)}%"></div></div><span class="pct">${(100 * p.p).toFixed(1)}%</span></div>`
     )
-    .join("") + `<p class="hint">Applied: <b>${r.actual}</b> ${oodPill}</p>`;
+    .join("") + `<p class="note">Applied: <b>${r.actual}</b> ${oodPill}</p>`;
 }
 
 async function inspectBlock(row, col) {
@@ -342,7 +338,7 @@ async function inspectBlock(row, col) {
 }
 
 async function runBlockNisq() {
-  if (!state.session) throw new Error("Embed an image first");
+  if (!state.session) throw new Error("Protect an image first");
   const r = await api("/api/nisq_block", {
     session: state.session,
     row: state.blockRow,
@@ -354,21 +350,10 @@ async function runBlockNisq() {
     .map((row) => `<tr><td>${row.name}</td><td>${row.qubits}</td><td>${row.two_qubit_gates}</td><td>${row.depth}</td><td>${fmt(row.duration_us, 1)}</td><td>${fmt(100 * row.success, 1)}%</td></tr>`)
     .join("");
   $("nisq-tbl").hidden = false;
-  if (r.rows[1]) {
-    $("stat-depth").textContent = `${r.rows[1].depth}`;
-    const barP = $("bar-nisq-p");
-    if (barP) barP.style.height = `${Math.max(18, Math.round(r.rows[0].success * 96))}px`;
-  }
+  if (r.rows[1]) $("stat-depth").textContent = `${r.rows[1].depth}`;
 }
 
-// --------------------------------------------------------------------------- look and feel
-function setHero(src) {
-  const img = $("hero-img");
-  img.classList.remove("ready");
-  img.onload = () => setTimeout(() => img.classList.add("ready"), 20);
-  img.src = src;
-}
-
+// --------------------------------------------------------------------------- views & 1-click flows
 function setupTheme() {
   const root = document.documentElement;
   let saved = null;
@@ -388,31 +373,38 @@ function setupTheme() {
   });
 }
 
-function setupSpy() {
-  const links = [...document.querySelectorAll(".side-nav a")];
+function showView(view) {
   const dash = $("dashboard-view");
   const paper = $("paper-view");
-  const showView = (view) => {
-    const isPaper = view === "paper";
-    if (dash) dash.hidden = isPaper;
-    if (paper) paper.hidden = !isPaper;
-    if (isPaper) loadPaperSummary();
-  };
-  links.forEach((a) => {
+  const isPaper = view === "paper";
+  if (dash) dash.hidden = isPaper;
+  if (paper) paper.hidden = !isPaper;
+  document.querySelectorAll(".rail-nav a").forEach((l) => {
+    const match = (l.dataset.view || "dashboard") === view && (!isPaper ? l.getAttribute("href") === "#studio-sec" : true);
+    if (isPaper || l.dataset.view === "paper") l.classList.toggle("active", isPaper && l.dataset.view === "paper");
+    else if (match) l.classList.add("active");
+  });
+  if (isPaper) {
+    loadPaperSummary();
+    paper.scrollIntoView({ behavior: "smooth" });
+  }
+}
+
+function setupNav() {
+  document.querySelectorAll(".rail-nav a").forEach((a) => {
     a.addEventListener("click", (ev) => {
-      links.forEach((l) => l.classList.remove("active"));
+      document.querySelectorAll(".rail-nav a").forEach((l) => l.classList.remove("active"));
       a.classList.add("active");
       const view = a.dataset.view || "dashboard";
       showView(view);
       if (view === "paper") ev.preventDefault();
     });
   });
-  if ($("back-overview")) {
-    $("back-overview").addEventListener("click", () => {
-      links.forEach((l) => l.classList.toggle("active", l.getAttribute("href") === "#top"));
-      showView("dashboard");
-    });
-  }
+  $("hero-paper-icon").addEventListener("click", () => showView("paper"));
+  $("back-overview").addEventListener("click", () => {
+    showView("dashboard");
+    $("top").scrollIntoView({ behavior: "smooth" });
+  });
 }
 
 async function loadPaperSummary() {
@@ -435,12 +427,9 @@ async function loadPaperSummary() {
 }
 
 async function runFullDemo() {
-  const dash = $("dashboard-view");
-  const paper = $("paper-view");
-  if (dash) dash.hidden = false;
-  if (paper) paper.hidden = true;
+  showView("dashboard");
   await embed();
-  await attack({ kind: "local", name: "lsb_preserving_splice", fraction: 0.2 });
+  await attack({ kind: "local", name: "blackout", fraction: 0.2 });
   await verify();
   if (state.meta && state.meta.classifier && state.meta.classifier.ready) {
     await classify().catch(() => null);
@@ -452,14 +441,37 @@ async function runFullDemo() {
   await runBlockNisq();
 }
 
+async function quickTamperAndHeal(attackBody) {
+  await attack(attackBody);
+  await verify();
+}
+
 // --------------------------------------------------------------------------- wiring
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
-  setupSpy();
+  setupNav();
   init();
   setupPaint();
+
   $("embed").addEventListener("click", (e) => busy(e.target, embed));
-  $("image").addEventListener("change", () => busy($("embed"), embed));
+  $("embed-sec-btn").addEventListener("click", (e) => busy(e.target, embed));
+  $("image").addEventListener("change", () => {
+    document.querySelectorAll(".sample-dot").forEach((b) => b.classList.toggle("active", b.dataset.sample === $("image").value));
+    busy($("embed"), embed);
+  });
+  document.querySelectorAll(".sample-dot").forEach((b) =>
+    b.addEventListener("click", () => {
+      const name = b.dataset.sample;
+      $("upload").value = "";
+      if ($("upload-dup")) $("upload-dup").value = "";
+      $("image").disabled = false;
+      $("clear-upload").hidden = true;
+      if ([...$("image").options].some((o) => o.value === name)) $("image").value = name;
+      document.querySelectorAll(".sample-dot").forEach((d) => d.classList.toggle("active", d === b));
+      busy($("embed"), embed);
+    })
+  );
+
   $("cover").addEventListener("click", pickBlock);
   document.querySelectorAll(".tab").forEach((tab) =>
     tab.addEventListener("click", () => {
@@ -467,9 +479,10 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".tabpane").forEach((p) => (p.hidden = p.dataset.pane !== tab.dataset.tab));
     })
   );
-  $("paint-apply").addEventListener("click", (e) => busy(e.target, () => attack({ kind: "paint", image: $("canvas").toDataURL("image/png") })));
+
+  $("paint-apply").addEventListener("click", (e) => busy(e.target, () => quickTamperAndHeal({ kind: "paint", image: $("canvas").toDataURL("image/png") })));
   $("local-frac").addEventListener("input", () => ($("local-frac-v").textContent = Number($("local-frac").value).toFixed(2)));
-  $("local-apply").addEventListener("click", (e) => busy(e.target, () => attack({ kind: "local", name: $("local-name").value, fraction: Number($("local-frac").value) })));
+  $("local-apply").addEventListener("click", (e) => busy(e.target, () => quickTamperAndHeal({ kind: "local", name: $("local-name").value, fraction: Number($("local-frac").value) })));
   $("global-name").addEventListener("change", setGlobalParam);
   $("global-param").addEventListener("input", () => ($("global-param-v").textContent = $("global-param").value));
   $("global-apply").addEventListener("click", (e) =>
@@ -477,24 +490,49 @@ document.addEventListener("DOMContentLoaded", () => {
       const name = $("global-name").value;
       const spec = GLOBAL_PARAMS[name];
       const params = spec ? { [spec[0]]: Number($("global-param").value) } : {};
-      return attack({ kind: "global", name, params });
+      return quickTamperAndHeal({ kind: "global", name, params });
     })
   );
-  $("none-apply").addEventListener("click", (e) => busy(e.target, () => attack({ kind: "none" })));
+
+  $("quick-blackout").addEventListener("click", (e) => busy(e.target, () => quickTamperAndHeal({ kind: "local", name: "blackout", fraction: 0.2 })));
+  $("quick-splice").addEventListener("click", (e) => busy(e.target, () => quickTamperAndHeal({ kind: "local", name: "lsb_preserving_splice", fraction: 0.2 })));
+  $("none-apply").addEventListener("click", (e) => busy(e.target, () => quickTamperAndHeal({ kind: "none" })));
   $("verify").addEventListener("click", (e) => busy(e.target, verify));
   $("classify").addEventListener("click", (e) => busy(e.target, classify));
   $("nisq-p2").addEventListener("input", () => ($("nisq-p2-v").textContent = $("nisq-p2").value));
   $("nisq-t1").addEventListener("input", () => ($("nisq-t1-v").textContent = $("nisq-t1").value));
   $("nisq-run").addEventListener("click", (e) => busy(e.target, runBlockNisq));
-  if ($("run-full")) $("run-full").addEventListener("click", (e) => busy(e.target, runFullDemo));
-  $("upload").addEventListener("change", () => {
-    const hasFile = Boolean($("upload").files[0]);
+
+  $("run-full").addEventListener("click", (e) => busy(e.target, runFullDemo));
+  $("hero-demo-icon").addEventListener("click", () => $("run-full").click());
+  const tileTamper = $("tile-tamper-trigger");
+  tileTamper.addEventListener("click", () => busy($("run-full"), () => quickTamperAndHeal({ kind: "local", name: "blackout", fraction: 0.2 })));
+  tileTamper.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      tileTamper.click();
+    }
+  });
+
+  const handleUploadChange = (srcInput) => {
+    const file = srcInput.files[0];
+    if (srcInput === $("upload-dup") && file && $("upload")) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      $("upload").files = dt.files;
+    }
+    const hasFile = Boolean($("upload").files[0] || ($("upload-dup") && $("upload-dup").files[0]));
     $("image").disabled = hasFile;
     $("clear-upload").hidden = !hasFile;
-  });
+    if (hasFile) busy($("embed"), embed);
+  };
+  $("upload").addEventListener("change", (e) => handleUploadChange(e.target));
+  if ($("upload-dup")) $("upload-dup").addEventListener("change", (e) => handleUploadChange(e.target));
   $("clear-upload").addEventListener("click", () => {
     $("upload").value = "";
+    if ($("upload-dup")) $("upload-dup").value = "";
     $("image").disabled = false;
     $("clear-upload").hidden = true;
+    busy($("embed"), embed);
   });
 });

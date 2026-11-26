@@ -109,8 +109,10 @@ def download_standard_images(names=None, dest: Path = DATA_DIR, overwrite: bool 
             paths.append(target)
             continue
         url = _MIRROR + STANDARD_IMAGES[name]
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        if not url.startswith("https://"):
+            raise ValueError(f"unsupported URL scheme: {url}")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})  # noqa: S310
+        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
             buf = np.frombuffer(resp.read(), dtype=np.uint8)
         img = cv2.imdecode(buf, cv2.IMREAD_UNCHANGED)
         if img is None:

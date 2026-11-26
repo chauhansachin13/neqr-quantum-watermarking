@@ -123,7 +123,8 @@ def benchmark_splits(y: np.ndarray, groups: np.ndarray, seed: int = 42) -> dict[
     tr, te = train_test_split(idx, test_size=0.2, stratify=y, random_state=seed)
     sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=seed)
     gtr, gte = next(sgkf.split(idx, y, groups))
-    assert not set(groups[gtr]) & set(groups[gte])
+    if set(groups[gtr]) & set(groups[gte]):
+        raise RuntimeError("cover-disjoint split leaked group identifiers")
     return {"random": (np.sort(tr), np.sort(te)), "cover_disjoint": (gtr, gte)}
 
 

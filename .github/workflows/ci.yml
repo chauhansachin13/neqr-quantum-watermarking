@@ -19,18 +19,26 @@ jobs:
           cache: pip
       - name: Install
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
-      - name: Lint
-        run: ruff check qwm tests scripts
-      - name: Test
-        run: pytest -q
-      - name: Smoke-run the CLI
+      - name: Lint and security checks
+        run: |
+          ruff check qwm tests scripts
+          ruff check --select S qwm
+      - name: Test with coverage
+        run: pytest --cov=qwm --cov-fail-under=85 -q
+      - name: Verify wheel package build
+        run: |
+          python -m pip wheel . --no-deps --no-build-isolation -w /tmp/dist
+          python -c "import glob, zipfile; z = zipfile.ZipFile(glob.glob('/tmp/dist/*.whl')[0]); assert 'qwm/web/static/index.html' in z.namelist(), 'missing web assets'"
+      - name: Smoke-run the CLI and health check
         run: |
           qwm demo
+          qwm run --size 32
           qwm resources --out /tmp/qwm
           qwm evaluate --images camera,coins --size 64 --out /tmp/qwm
           qwm paper-checks --out /tmp/qwm/checks
           qwm embed camera --mode keyed --key ci-key --nonce ci -o /tmp/qwm/keyed.png
           qwm verify /tmp/qwm/keyed.png --mode keyed --key ci-key --nonce ci
           qwm tamper-study --images camera,coins,moon --repeats 1 --out /tmp/qwm/tamper
+          python -c "import json, threading, urllib.request; from qwm.web.server import make_server; h,_=make_server('127.0.0.1',0,prepare_classifier=False); t=threading.Thread(target=h.serve_forever,daemon=True); t.start(); r=json.loads(urllib.request.urlopen(f'http://127.0.0.1:{h.server_address[1]}/api/health').read()); h.shutdown(); assert r['status']=='ok' and r['version']"

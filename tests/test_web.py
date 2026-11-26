@@ -91,6 +91,10 @@ def test_block_endpoint_runs_qiskit_on_a_request_thread(server):
 
 def test_errors_are_json(server):
     base, _ = server
+    with urllib.request.urlopen(base + "/api/health") as resp:
+        assert resp.status == 200
+        health = json.loads(resp.read().decode())
+    assert health["status"] == "ok" and "version" in health
     status, body = _post(base + "/api/verify", {"session": "nope"})
     assert status == 400 and "session" in body["error"]
     status, body = _post(base + "/api/embed", {"image": "camera", "mode": "bogus"})
