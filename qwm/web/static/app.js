@@ -1,20 +1,19 @@
 "use strict";
-// NEQR quantum watermarking - interactive demo front-end (no dependencies).
+// NEQR quantum watermarking dashboard - clean modern Nixtio-inspired GUI.
 
 const $ = (id) => document.getElementById(id);
 const state = { session: null, mode: "keyed-opt", meta: null, paintValue: 255, imageSize: 256, blockRow: 0, blockCol: 0 };
 
 const MODE_INFO = {
-  paper: { title: "Base: literal rule", tag: "base", text: "RPA → XOR → QE → Pauli-X exactly as written in the paper." },
-  lsb: { title: "Base: LSB replacement", tag: "base", text: "Content code PPB ⊕ AA in the two LSBs; checking it needs the stored reference bits." },
-  opap: { title: "Base v3: OPAP", tag: "v3", text: "Optimal Pixel Adjustment Process shifts ±4 MSBs where valid, boosting PSNR from ~44.1 to ~46.4 dB." },
-  keyed: { title: "Keyed blind authentication", tag: "v2", text: "Content code ⊕ keyed one-time MAC. Verify with the key alone; 2×2 localisation." },
-  "keyed-opt": { title: "Keyed blind authentication (optimal)", tag: "v3", text: "81-coset MSB search per 2×2 block: ~46.4 dB PSNR with 100% unchanged blind receiver verification." },
-  recovery: { title: "Keyed self-recovery (4×4)", tag: "v2", text: "Blocks carry a partner's AA recovery code + a 12-bit MAC: detect and repair." },
-  "recovery-dual": { title: "Dual-partner Haar recovery (8×8)", tag: "v3", text: "68-bit primary + 44-bit secondary companded Haar codes + 16-bit MAC (2^-16 forgery, >97% code recovery)." },
+  paper: { title: "Base: literal rule", tag: "base", text: "RPA → XOR → QE → Pauli-X rule" },
+  lsb: { title: "Base: LSB replacement", tag: "base", text: "PPB ⊕ AA (needs reference bits)" },
+  opap: { title: "Base: OPAP", tag: "v3", text: "±4 MSB adjustment (~46.4 dB)" },
+  keyed: { title: "Keyed blind (2×2)", tag: "v2", text: "MAC blind verify (2^-8 prob)" },
+  "keyed-opt": { title: "Keyed optimal", tag: "v3", text: "81-coset blind (~46.4 dB)" },
+  recovery: { title: "Self-recovery (4×4)", tag: "v2", text: "Partner AA code + 12-bit MAC" },
+  "recovery-dual": { title: "Dual-partner Haar (8×8)", tag: "v3", text: "Primary + backup Haar (2^-16)" },
 };
 
-// main slider of every global attack: [param, min, max, step, default, label]
 const GLOBAL_PARAMS = {
   gaussian_noise: ["sigma", 0.005, 0.3, 0.005, 0.02, "σ"],
   salt_pepper_noise: ["density", 0.005, 0.3, 0.005, 0.02, "density"],
@@ -43,21 +42,37 @@ async function api(path, body) {
 }
 
 async function busy(button, fn) {
-  const label = button.textContent;
+  const html = button.innerHTML;
   button.disabled = true;
-  button.textContent = "working…";
+  button.textContent = "Working…";
   try {
     await fn();
   } catch (err) {
     toast(err.message);
   } finally {
     button.disabled = false;
-    button.textContent = label;
+    button.innerHTML = html;
   }
 }
 
 const fmt = (v, d = 2) => (v === null || v === undefined ? "–" : !isFinite(v) ? "∞" : Number(v).toFixed(d));
 const chip = (label, value) => `<span class="chip"><b>${value}</b>${label}</span>`;
+
+function renderDotMatrix(values = [0.35, 0.55, 0.45, 0.72, 0.30, 0.50, 0.85, 0.65, 0.48]) {
+  const box = $("dot-matrix");
+  if (!box) return;
+  box.innerHTML = values
+    .map((v) => {
+      const n = Math.max(1, Math.min(5, Math.round(v * 5)));
+      let dots = "";
+      for (let i = 0; i < 5; i++) {
+        const cls = i < n ? (n >= 4 && i === n - 1 ? "dm-dot peak" : "dm-dot on") : "dm-dot";
+        dots += `<span class="${cls}"></span>`;
+      }
+      return `<div class="dm-col">${dots}</div>`;
+    })
+    .join("");
+}
 
 // --------------------------------------------------------------------------- setup
 function renderModes() {
@@ -79,6 +94,7 @@ function renderModes() {
 
 async function init() {
   renderModes();
+  renderDotMatrix();
   try {
     const meta = await api("/api/meta");
     state.meta = meta;
@@ -90,11 +106,11 @@ async function init() {
     for (const a of meta.attacks) $("global-name").add(new Option(a.label, a.name));
     $("global-name").value = "jpeg_compression";
     setGlobalParam();
-    $("status").textContent = "Connected · every result is computed live on this machine";
+    $("status").textContent = "Live · local simulation";
     pollClassifier();
-    await embed(); // start populated: the hero shows the freshly watermarked image
+    await embed();
   } catch (err) {
-    $("status").textContent = "server not reachable";
+    $("status").textContent = "Server offline";
     toast(err.message);
   }
 }
@@ -133,14 +149,21 @@ async function embed() {
   $("embed-out").hidden = false;
   $("pickbox").hidden = true;
   const m = r.metrics;
+  $("hero-psnr").textContent = fmt(m.psnr, 2);
+  $("hero-delta").textContent = `${fmt(m.psnr - 44.15, 2) >= 0 ? "+" : ""}${fmt(m.psnr - 44.15, 2)} dB`;
+  $("hero-side").textContent = m.side_information_bits ? `${m.side_information_bits.toLocaleString()} bits` : "Key only";
+  const psnrShare = Math.min(100, Math.max(20, (m.psnr / 48.4) * 100));
+  $("m-psnr-pct").textContent = `${fmt(psnrShare, 0)}%`;
+  $("bar-psnr").style.width = `${psnrShare}%`;
+  $("m-ssim-pct").textContent = `${fmt(m.ssim * 100, 1)}%`;
+  $("bar-ssim").style.width = `${Math.min(100, m.ssim * 100)}%`;
+
   $("embed-metrics").innerHTML =
-    chip("PSNR", `${fmt(m.psnr)} dB`) + chip("SSIM", fmt(m.ssim, 4)) + chip("payload", `${m.bpp} bpp`) +
-    chip("side information", m.side_information_bits ? `${m.side_information_bits.toLocaleString()} bits` : "key only") +
-    chip("embed", `${fmt(m.embed_ms, 1)} ms`);
+    chip("PSNR", `${fmt(m.psnr)} dB`) + chip("SSIM", fmt(m.ssim, 4)) + chip("MSE", fmt(m.mse, 3)) +
+    chip("Time", `${fmt(m.embed_ms, 1)} ms`);
   loadCanvas(r.watermarked);
-  // reset downstream panels
   $("attacked").src = r.watermarked;
-  $("attack-caption").textContent = "untouched watermarked image";
+  $("attack-caption").textContent = "Untouched watermarked image";
   $("attack-out").hidden = false;
   for (const id of ["verify-out", "verdict"]) $(id).hidden = true;
   $("verify-note").textContent = "";
@@ -148,7 +171,6 @@ async function embed() {
   $("block-out").hidden = true;
 }
 
-// pick a block on the cover
 function pickBlock(ev) {
   if (!state.session) return;
   const img = $("cover");
@@ -206,7 +228,7 @@ function setupPaint() {
     last = p;
   };
   c.addEventListener("pointerdown", (e) => {
-    if (!state.session) return toast("embed an image first");
+    if (!state.session) return toast("Embed an image first");
     drawing = true;
     last = null;
     c.setPointerCapture(e.pointerId);
@@ -240,10 +262,10 @@ function setGlobalParam() {
 }
 
 async function attack(body) {
-  if (!state.session) throw new Error("embed an image first");
+  if (!state.session) throw new Error("Embed an image first");
   const r = await api("/api/attack", { session: state.session, seed: Math.floor(Math.random() * 1e6), ...body });
   $("attacked").src = r.attacked;
-  $("attack-caption").textContent = `${r.label} · PSNR vs cover ${fmt(r.psnr)} dB · ${r.changed_pixels.toLocaleString()} pixels changed`;
+  $("attack-caption").textContent = `${r.label} · ${fmt(r.psnr)} dB · ${r.changed_pixels.toLocaleString()} px`;
   $("attack-out").hidden = false;
   for (const id of ["verify-out", "verdict"]) $(id).hidden = true;
   $("verify-note").textContent = "";
@@ -252,7 +274,7 @@ async function attack(body) {
 
 // --------------------------------------------------------------------------- steps 3-5
 async function verify() {
-  if (!state.session) throw new Error("embed an image first");
+  if (!state.session) throw new Error("Embed an image first");
   const r = await api("/api/verify", { session: state.session });
   $("overlay").src = r.overlay;
   $("dl-overlay").href = r.overlay;
@@ -264,31 +286,36 @@ async function verify() {
   const pct = (100 * r.blocks_failed) / r.blocks_total;
   v.innerHTML = ok
     ? `Authentic — all ${r.blocks_total.toLocaleString()} blocks verified`
-    : `Tampered — ${r.blocks_failed.toLocaleString()} of ${r.blocks_total.toLocaleString()} ${r.block_size}×${r.block_size} blocks failed (${fmt(pct)} %)`;
-  if (r.ber !== undefined) v.innerHTML += `<small>bit error rate vs reference bits: ${fmt(r.ber, 4)}</small>`;
+    : `Tampered — ${r.blocks_failed.toLocaleString()} / ${r.blocks_total.toLocaleString()} ${r.block_size}×${r.block_size} blocks failed (${fmt(pct)}%)`;
+  if (r.ber !== undefined) v.innerHTML += `<small>BER vs reference: ${fmt(r.ber, 4)}</small>`;
   const rf = $("recovered-fig");
   if (r.recovered) {
     $("recovered").src = r.recovered;
     $("dl-recovered").href = r.recovered;
-    $("recovered-caption").textContent = `repaired · PSNR ${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB · ${fmt(100 * r.restored_fraction, 0)} % rebuilt from codes`;
+    $("recovered-caption").textContent = `${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB (${fmt(100 * r.restored_fraction, 0)}% restored)`;
     rf.hidden = false;
   } else rf.hidden = true;
   $("verify-note").textContent = r.note || "";
 }
 
 async function classify() {
-  if (!state.session) throw new Error("embed an image first");
+  if (!state.session) throw new Error("Embed an image first");
   const r = await api("/api/classify", { session: state.session });
   $("clf-info").textContent = r.info;
-  if (!r.ready) return toast("the classifier is still training, try again in a few seconds");
-  const oodNote = r.is_unknown
-    ? ` · <b>FLAGGED UNKNOWN / OOD</b> (confidence ${fmt(100 * r.confidence, 1)}% &lt; threshold ${fmt(100 * r.threshold, 1)}%)`
-    : ` · confidence ${fmt(100 * r.confidence, 1)}% (threshold ${fmt(100 * r.threshold, 1)}%)`;
+  if (!r.ready) return toast("Classifier still warming up — retry in a moment");
+  $("clf-top-pct").textContent = `${fmt(100 * r.confidence, 1)}%`;
+  $("clf-top-lbl").textContent = r.predicted;
+  $("clf-ood-pill").textContent = r.is_unknown ? "OOD Flagged" : "In-distribution";
+  renderDotMatrix(r.probabilities.slice(0, 9).map((p) => Math.max(0.15, p.p)));
+  const oodPill = r.is_unknown
+    ? `<span class="ood-badge warn">OOD (${fmt(100 * r.confidence, 1)}% &lt; ${fmt(100 * r.threshold, 1)}%)</span>`
+    : `<span class="ood-badge safe">Known (${fmt(100 * r.confidence, 1)}% &ge; ${fmt(100 * r.threshold, 1)}%)</span>`;
   $("bars").innerHTML = r.probabilities
+    .slice(0, 5)
     .map(
       (p, i) => `<div class="bar ${i === 0 ? "best" : ""}"><span>${p.name}</span><div class="track"><div class="fill" style="width:${(100 * p.p).toFixed(1)}%"></div></div><span class="pct">${(100 * p.p).toFixed(1)}%</span></div>`
     )
-    .join("") + `<p class="hint">applied: <b>${r.actual}</b> · predicted: <b>${r.predicted}</b>${oodNote}</p>`;
+    .join("") + `<p class="hint">Applied: <b>${r.actual}</b> ${oodPill}</p>`;
 }
 
 async function inspectBlock(row, col) {
@@ -298,11 +325,11 @@ async function inspectBlock(row, col) {
   $("block-id").textContent = `(${row}, ${col})`;
   const t = r.trace;
   const rows = [
-    ["pixels C00 C01 C10 C11", r.pixels.join(", ")],
-    ["binary", r.binary.join(" ")],
-    ["pixel position bits", t.ppb.map((p) => p.join("")).join(" ")],
-    ["sum → AA = ⌊S/4 + 0.5⌋", `${t.sum} → ${t.aa}`],
-    ["watermark Wb0…Wb7", t.watermark.join("")],
+    ["Pixels", r.pixels.join(", ")],
+    ["Binary", r.binary.join(" ")],
+    ["PPB", t.ppb.map((p) => p.join("")).join(" ")],
+    ["AA = ⌊S/4 + 0.5⌋", `${t.sum} → ${t.aa}`],
+    ["Watermark Wb", t.watermark.join("")],
   ];
   $("block-kv").innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
   $("block-circuits").querySelector("tbody").innerHTML = r.circuits
@@ -311,11 +338,11 @@ async function inspectBlock(row, col) {
   $("neqr").src = r.neqr;
   $("block-out").hidden = false;
   $("nisq-tbl").hidden = true;
-  $("block-hint").textContent = `Simulated exactly in ${fmt(Object.values(r.timings_ms).reduce((a, b) => a + b, 0), 0)} ms. Click another block to compare.`;
+  $("block-hint").textContent = `Block (${row}, ${col}) simulated in ${fmt(Object.values(r.timings_ms).reduce((a, b) => a + b, 0), 0)} ms.`;
 }
 
 async function runBlockNisq() {
-  if (!state.session) throw new Error("embed an image first");
+  if (!state.session) throw new Error("Embed an image first");
   const r = await api("/api/nisq_block", {
     session: state.session,
     row: state.blockRow,
@@ -327,13 +354,18 @@ async function runBlockNisq() {
     .map((row) => `<tr><td>${row.name}</td><td>${row.qubits}</td><td>${row.two_qubit_gates}</td><td>${row.depth}</td><td>${fmt(row.duration_us, 1)}</td><td>${fmt(100 * row.success, 1)}%</td></tr>`)
     .join("");
   $("nisq-tbl").hidden = false;
+  if (r.rows[1]) {
+    $("stat-depth").textContent = `${r.rows[1].depth}`;
+    const barP = $("bar-nisq-p");
+    if (barP) barP.style.height = `${Math.max(18, Math.round(r.rows[0].success * 96))}px`;
+  }
 }
 
 // --------------------------------------------------------------------------- look and feel
 function setHero(src) {
   const img = $("hero-img");
   img.classList.remove("ready");
-  img.onload = () => setTimeout(() => img.classList.add("ready"), 30);
+  img.onload = () => setTimeout(() => img.classList.add("ready"), 20);
   img.src = src;
 }
 
@@ -345,61 +377,35 @@ function setupTheme() {
   } catch (_) {
     saved = null;
   }
-  if (saved === "light" || saved === "dark") root.dataset.theme = saved;
+  root.dataset.theme = saved === "dark" ? "dark" : "light";
   $("theme").addEventListener("click", () => {
-    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    root.dataset.theme = dark ? "light" : "dark";
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
     try {
       localStorage.setItem("qwm-theme", root.dataset.theme);
     } catch (_) {
-      /* private mode: the choice just is not remembered */
+      /* private mode */
     }
   });
 }
 
-function setupMotion() {
-  const items = document.querySelectorAll(".chapter-head, .chapter-body, .metrics div");
-  // no entrance animation when the page loads in a background tab (observers may never fire)
-  const animate = document.visibilityState === "visible" && "IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!animate) return setupSpy();
-  items.forEach((el, i) => {
-    el.classList.add("reveal");
-    el.style.transitionDelay = `${(i % 5) * 60}ms`;
-  });
-  const io = new IntersectionObserver(
-    (entries) => entries.forEach((e) => e.isIntersecting && (e.target.classList.add("in"), io.unobserve(e.target))),
-    { threshold: 0.12 }
-  );
-  items.forEach((el) => io.observe(el));
-  setupSpy();
-}
-
 function setupSpy() {
-  const links = [...document.querySelectorAll(".rail-nav a")];
-  const spy = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === `#${e.target.id}`));
-      }
-    },
-    { rootMargin: "-45% 0px -50% 0px" }
-  );
-  document.querySelectorAll(".chapter").forEach((c) => spy.observe(c));
-
-  const visual = document.querySelector(".hero-visual");
-  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    addEventListener("scroll", () => visual.style.setProperty("--parallax", `${Math.min(scrollY, 900) * 0.18}px`), { passive: true });
-  }
+  const links = [...document.querySelectorAll(".side-nav a")];
+  links.forEach((a) => {
+    a.addEventListener("click", () => {
+      links.forEach((l) => l.classList.remove("active"));
+      a.classList.add("active");
+    });
+  });
 }
 
 // --------------------------------------------------------------------------- wiring
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
-  setupMotion();
+  setupSpy();
   init();
   setupPaint();
   $("embed").addEventListener("click", (e) => busy(e.target, embed));
+  $("image").addEventListener("change", () => busy($("embed"), embed));
   $("cover").addEventListener("click", pickBlock);
   document.querySelectorAll(".tab").forEach((tab) =>
     tab.addEventListener("click", () => {
@@ -426,5 +432,14 @@ document.addEventListener("DOMContentLoaded", () => {
   $("nisq-p2").addEventListener("input", () => ($("nisq-p2-v").textContent = $("nisq-p2").value));
   $("nisq-t1").addEventListener("input", () => ($("nisq-t1-v").textContent = $("nisq-t1").value));
   $("nisq-run").addEventListener("click", (e) => busy(e.target, runBlockNisq));
-  $("upload").addEventListener("change", () => $("upload").files[0] && ($("image").disabled = true));
+  $("upload").addEventListener("change", () => {
+    const hasFile = Boolean($("upload").files[0]);
+    $("image").disabled = hasFile;
+    $("clear-upload").hidden = !hasFile;
+  });
+  $("clear-upload").addEventListener("click", () => {
+    $("upload").value = "";
+    $("image").disabled = false;
+    $("clear-upload").hidden = true;
+  });
 });

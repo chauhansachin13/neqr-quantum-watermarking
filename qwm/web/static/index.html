@@ -5,213 +5,349 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NEQR Quantum Watermarking</title>
   <meta name="description" content="Interactive demo: reversible-circuit quantum image watermarking with keyed blind verification, self-recovery and an AI attack detector.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23eee' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%231e1e20'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23ccec4d'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <!-- left rail: wordmark + vertical navigation ------------------------------ -->
-  <aside class="rail">
-    <a class="wordmark" href="#top" aria-label="NEQR quantum watermarking, back to top">neqr&thinsp;·&thinsp;qwm</a>
-    <nav class="rail-nav" aria-label="Sections">
-      <a href="#step1"><span>01</span>Embed</a>
-      <a href="#step2"><span>02</span>Attack</a>
-      <a href="#step3"><span>03</span>Verify</a>
-      <a href="#step4"><span>04</span>Identify</a>
-      <a href="#step5"><span>05</span>Circuits</a>
-    </nav>
-    <span id="status" class="status">connecting&hellip;</span>
-  </aside>
+  <div class="app-shell">
+    <!-- Left Dark Charcoal Sidebar -->
+    <aside class="sidebar">
+      <a class="brand-row" href="#top">
+        <span class="brand-mark">Q</span>
+        <span class="brand-name">qwm</span>
+        <span class="brand-ver">v3.0</span>
+      </a>
 
-  <a class="cta-circle" href="#step1" aria-label="Start the demo">Run the<br>demo</a>
+      <nav class="side-nav" aria-label="Dashboard sections">
+        <a href="#top" class="active">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          Overview<span class="nav-badge">5</span>
+        </a>
+        <a href="#step1">
+          <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/></svg>
+          Embed<span class="nav-badge subtle">7</span>
+        </a>
+        <a href="#step2">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Attack
+        </a>
+        <a href="#step3">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          Verify
+        </a>
+        <a href="#step4">
+          <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-5"/></svg>
+          AI Forensic
+        </a>
+        <a href="#step5">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/></svg>
+          Circuits
+        </a>
+      </nav>
 
-  <!-- hero ---------------------------------------------------------------- -->
-  <header class="hero" id="top">
-    <div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
-    <figure class="hero-visual" aria-hidden="true"><img id="hero-img" alt=""></figure>
-    <div class="hero-copy">
-      <h1 class="display">We hide, verify and repair images with reversible quantum&nbsp;logic.</h1>
-      <p class="hero-lede">NEQR encoding &middot; RPA / RPS / D4 / QE circuits &middot; keyed blind authentication &middot; self-recovery &middot; Random-Forest attack detector. Everything below runs live on this machine.</p>
-    </div>
-    <a class="scroll-cue" href="#metrics">Scroll<svg viewBox="0 0 12 22" aria-hidden="true"><path d="M6 0v20M1 15l5 5 5-5"/></svg></a>
-    <div class="corner-dots">
-      <a href="https://doi.org/10.1016/j.array.2026.101035" target="_blank" rel="noopener" title="Reference design">doi</a>
-      <a href="#step5" title="Quantum circuits">qc</a>
-      <button id="theme" type="button" title="Switch light / dark">&#9680;</button>
-    </div>
-  </header>
-
-  <!-- metric strip -------------------------------------------------------- -->
-  <section class="metrics" id="metrics" aria-label="Key numbers">
-    <div><b>46.4<small>dB</small></b><span>v3 OPAP / optimal-coset PSNR at 2 bpp</span></div>
-    <div><b>2<sup>&minus;16</sup></b><span>chance a forged 8&times;8 dual-partner block passes</span></div>
-    <div><b>44 / 69<small>q</small></b><span>lean Cuccaro vs shallow log-depth CLA</span></div>
-    <div><b>0</b><span>false alarms on untouched blocks</span></div>
-    <div><b>162<small>dim</small></b><span>multi-domain forensic descriptors + OOD gate</span></div>
-  </section>
-
-  <main>
-    <!-- 01 --------------------------------------------------------------- -->
-    <section class="chapter" id="step1">
-      <div class="chapter-head">
-        <span class="num">01</span>
-        <h2>Choose a cover<br>and a scheme</h2>
-        <p class="lead">Pick a test image (or upload one) and how the watermark is built. The two <em>v2</em> schemes are blind: the key alone verifies them.</p>
+      <div class="promo-card">
+        <div class="promo-title">NEQR Studio Pro</div>
+        <p class="promo-sub">Exact Qiskit statevector &amp; Aer MPS simulation running live locally.</p>
+        <div class="promo-stats"><span class="promo-dot"></span><span id="status">Connecting&hellip;</span></div>
+        <a class="promo-btn" href="#step5">Inspect Circuits</a>
       </div>
-      <div class="chapter-body">
-        <div class="controls">
-          <label class="field">Test image <select id="image"></select></label>
-          <label class="field file">or upload <input type="file" id="upload" accept="image/*"></label>
-        </div>
-        <div class="modes" id="modes"></div>
-        <div class="controls" id="keyrow">
-          <label class="field">Secret key <input id="key" value="demo-key" autocomplete="off" spellcheck="false"></label>
-          <label class="field">Nonce (image ID) <input id="nonce" placeholder="defaults to the image name" autocomplete="off" spellcheck="false"></label>
-        </div>
-        <button class="btn" id="embed">Embed watermark <span class="arrow">&rarr;</span></button>
-        <div class="images three" id="embed-out" hidden>
-          <figure><div class="pick"><img id="cover" alt="cover"><div id="pickbox" class="pickbox" hidden></div></div><figcaption>Cover &mdash; <em>click a 2&times;2 block for 05</em></figcaption></figure>
-          <figure><img id="watermarked" alt="watermarked"><figcaption>Watermarked &middot; <a id="dl-watermarked" download="watermarked.png" href="#">download PNG</a></figcaption></figure>
-          <figure><img id="difference" alt="difference"><figcaption>|Difference| &times; 64</figcaption></figure>
-        </div>
-        <div class="chips" id="embed-metrics"></div>
-        <a class="next" href="#step2">Next step <span>&rarr;</span></a>
-      </div>
-    </section>
+    </aside>
 
-    <!-- 02 --------------------------------------------------------------- -->
-    <section class="chapter" id="step2">
-      <div class="chapter-head">
-        <span class="num">02</span>
-        <h2>Attack<br>the image</h2>
-        <p class="lead">Paint on it, apply a local forgery, or run one of the nine global attacks the AI module was trained on.</p>
-      </div>
-      <div class="chapter-body">
-        <div class="tabs" role="tablist">
-          <button class="tab active" data-tab="paint">Paint on it</button>
-          <button class="tab" data-tab="local">Local edit</button>
-          <button class="tab" data-tab="global">Global attack</button>
-          <button class="tab" data-tab="none">No attack</button>
+    <!-- Main Cool-Grey Bento Workspace -->
+    <div class="workspace" id="top">
+      <!-- Top Utility Bar -->
+      <header class="top-bar">
+        <div class="profile">
+          <figure class="avatar"><img id="hero-img" alt="Watermarked preview"></figure>
+          <div class="profile-meta">
+            <b>Sachin Chauhan</b>
+            <span>25CSM1S13 &middot; NEQR Quantum Lab</span>
+          </div>
         </div>
-        <div class="tabpane" data-pane="paint">
-          <p class="hint">Draw on the watermarked image, then apply the edit.</p>
-          <div class="paintbox"><canvas id="canvas" width="256" height="256"></canvas></div>
-          <div class="controls">
-            <label class="field">Brush <input type="range" id="brush" min="2" max="24" value="8"></label>
-            <div class="swatches" id="swatches">
-              <button class="sw active" data-v="255" style="background:#fff" aria-label="white"></button>
-              <button class="sw" data-v="128" style="background:#808080" aria-label="grey"></button>
-              <button class="sw" data-v="0" style="background:#000" aria-label="black"></button>
+
+        <div class="top-tools">
+          <label class="pill-control" title="Choose test cover image">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <select id="image" aria-label="Test image"></select>
+          </label>
+          <label class="file-btn">Upload PNG<input type="file" id="upload" accept="image/*"></label>
+          <button class="btn ghost" id="clear-upload" type="button" hidden>Clear</button>
+          <a class="circle-btn" href="https://doi.org/10.1016/j.array.2026.101035" target="_blank" rel="noopener" title="Reference paper">
+            &#8599;<span class="mini-badge">v3</span>
+          </a>
+          <button class="circle-btn" id="theme" type="button" title="Toggle canvas mode">&#9680;</button>
+        </div>
+      </header>
+
+      <!-- Page Header -->
+      <div class="page-head">
+        <div>
+          <h1>Quantum Overview</h1>
+          <p class="page-sub">Hide, verify, repair and classify images with reversible quantum logic.</p>
+        </div>
+        <div class="head-right">
+          <span class="date-label">2 bpp &middot; 256&times;256</span>
+          <button class="btn" id="embed">Embed Watermark &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Asymmetric 3-Column Bento Dashboard Grid -->
+      <div class="bento-top">
+        <!-- LEFT TALL COLUMN (Step 01: Scheme, Quality & Outputs) -->
+        <section class="card" id="step1">
+          <div class="card-head">
+            <div class="card-title-group">
+              <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+              <h2 class="card-title">01 &middot; Embedding Quality</h2>
             </div>
-            <button class="btn ghost" id="paint-reset">Reset</button>
-            <button class="btn" id="paint-apply">Apply edit <span class="arrow">&rarr;</span></button>
+            <span class="card-dots">&vellip;</span>
           </div>
-        </div>
-        <div class="tabpane" data-pane="local" hidden>
-          <div class="controls">
-            <label class="field">Edit <select id="local-name"></select></label>
-            <label class="field">Size <input type="range" id="local-frac" min="0.05" max="0.4" step="0.01" value="0.2"><span id="local-frac-v">0.20</span></label>
-            <button class="btn" id="local-apply">Apply <span class="arrow">&rarr;</span></button>
+
+          <div class="kpi-row">
+            <div class="kpi-main">
+              <span class="kpi-val" id="hero-psnr">46.4</span>
+              <span class="kpi-unit">dB PSNR</span>
+              <span class="delta-pill" id="hero-delta">+2.3 dB</span>
+            </div>
+            <div class="kpi-side"><b id="hero-side">Key only</b><span>Payload 2 bpp</span></div>
           </div>
-          <p class="hint"><b>LSB-preserving splice</b> keeps every embedded bit: the base scheme cannot see it, the keyed schemes can.</p>
-        </div>
-        <div class="tabpane" data-pane="global" hidden>
-          <div class="controls">
-            <label class="field">Attack <select id="global-name"></select></label>
-            <label class="field" id="global-param-wrap"><span id="global-param-label">param</span> <input type="range" id="global-param"><span id="global-param-v"></span></label>
-            <button class="btn" id="global-apply">Apply <span class="arrow">&rarr;</span></button>
+
+          <div class="modes" id="modes"></div>
+
+          <div class="controls" id="keyrow">
+            <label class="field">Secret key <input id="key" value="demo-key" autocomplete="off" spellcheck="false"></label>
+            <label class="field">Nonce <input id="nonce" placeholder="image name" autocomplete="off" spellcheck="false"></label>
           </div>
-          <p class="hint">LSB watermarks are fragile by design, so global attacks fail most blocks.</p>
-        </div>
-        <div class="tabpane" data-pane="none" hidden>
-          <button class="btn" id="none-apply">Use the untouched watermarked image <span class="arrow">&rarr;</span></button>
-        </div>
-        <div class="images one" id="attack-out" hidden>
-          <figure><img id="attacked" alt="attacked"><figcaption id="attack-caption">Attacked</figcaption></figure>
-        </div>
-        <a class="next" href="#step3">Next step <span>&rarr;</span></a>
-      </div>
-    </section>
 
-    <!-- 03 --------------------------------------------------------------- -->
-    <section class="chapter" id="step3">
-      <div class="chapter-head">
-        <span class="num">03</span>
-        <h2>Verify<br>and repair</h2>
-        <p class="lead">Every block is checked against what the key says it must contain. The self-recovery scheme then rebuilds the failed blocks.</p>
-      </div>
-      <div class="chapter-body">
-        <button class="btn" id="verify">Verify <span class="arrow">&rarr;</span></button>
-        <div id="verdict" class="verdict" hidden></div>
-        <div class="images two" id="verify-out" hidden>
-          <figure><img id="overlay" alt="tamper map"><figcaption>Failed blocks in red &middot; <a id="dl-overlay" download="tamper_map.png" href="#">download PNG</a></figcaption></figure>
-          <figure id="recovered-fig" hidden><img id="recovered" alt="repaired"><figcaption><span id="recovered-caption">Repaired</span> &middot; <a id="dl-recovered" download="repaired.png" href="#">download PNG</a></figcaption></figure>
-        </div>
-        <p class="note" id="verify-note"></p>
-        <a class="next" href="#step4">Next step <span>&rarr;</span></a>
-      </div>
-    </section>
-
-    <!-- 04 --------------------------------------------------------------- -->
-    <section class="chapter" id="step4">
-      <div class="chapter-head">
-        <span class="num">04</span>
-        <h2>Which attack<br>was it?</h2>
-        <p class="lead" id="clf-info">The Random Forest of the reference design, on a 137-value distortion descriptor.</p>
-      </div>
-      <div class="chapter-body">
-        <button class="btn" id="classify">Identify the attack <span class="arrow">&rarr;</span></button>
-        <div id="bars" class="bars"></div>
-        <a class="next" href="#step5">Next step <span>&rarr;</span></a>
-      </div>
-    </section>
-
-    <!-- 05 --------------------------------------------------------------- -->
-    <section class="chapter" id="step5">
-      <div class="chapter-head">
-        <span class="num">05</span>
-        <h2>Inside the<br>quantum circuits</h2>
-        <p class="lead" id="block-hint">Click any 2&times;2 block on the cover in 01. It runs through the NEQR encoder and every reversible circuit, simulated exactly.</p>
-      </div>
-      <div class="chapter-body">
-        <div id="block-out" hidden>
-          <div class="blockgrid">
+          <div class="metric-bars">
             <div>
-              <h3>Block <span id="block-id"></span></h3>
-              <table class="kv" id="block-kv"></table>
+              <div class="m-row-head"><b id="m-psnr-pct">95%</b><span>of OPAP limit <i class="m-dot" style="background:var(--lavender)"></i></span></div>
+              <div class="m-track"><div class="m-fill" id="bar-psnr" style="width:95%;background:var(--lavender)"></div></div>
             </div>
             <div>
-              <h3>Circuits</h3>
-              <table class="tbl" id="block-circuits"><thead><tr><th>Circuit</th><th>Qubits</th><th>Output</th></tr></thead><tbody></tbody></table>
+              <div class="m-row-head"><b id="m-ssim-pct">99.3%</b><span>SSIM fidelity <i class="m-dot" style="background:var(--charcoal)"></i></span></div>
+              <div class="m-track"><div class="m-fill" id="bar-ssim" style="width:99%;background:var(--charcoal)"></div></div>
+            </div>
+            <div>
+              <div class="m-row-head"><b id="m-spd">2.0 bpp</b><span>Reversible rate <i class="m-dot" style="background:var(--lime)"></i></span></div>
+              <div class="m-track"><div class="m-fill" style="width:100%;background:var(--lime)"></div></div>
             </div>
           </div>
-          <h3>NEQR encoding of this block &mdash; 8 intensity + 2 position qubits</h3>
-          <div class="neqr"><img id="neqr" alt="NEQR circuit"></div>
-          <h3>Live NISQ noise comparison (Lean Cuccaro vs v3 Shallow CLA under T<sub>1</sub>/T<sub>2</sub> + gate noise)</h3>
-          <div class="controls">
-            <label class="field">2Q error p2 <input type="range" id="nisq-p2" min="0" max="0.005" step="0.0005" value="0.0005"><span id="nisq-p2-v">0.0005</span></label>
-            <label class="field">T<sub>1</sub> (&mu;s) <input type="range" id="nisq-t1" min="50" max="1500" step="50" value="300"><span id="nisq-t1-v">300</span></label>
-            <button class="btn ghost" id="nisq-run">Simulate block noise <span class="arrow">&rarr;</span></button>
+
+          <div class="images three" id="embed-out" hidden>
+            <figure>
+              <div class="pick"><img id="cover" alt="cover"><div id="pickbox" class="pickbox" hidden></div></div>
+              <figcaption><span>Cover (click 2&times;2)</span></figcaption>
+            </figure>
+            <figure>
+              <img id="watermarked" alt="watermarked">
+              <figcaption><span>Watermarked</span><a id="dl-watermarked" download="watermarked.png" href="#">PNG &darr;</a></figcaption>
+            </figure>
+            <figure>
+              <img id="difference" alt="difference">
+              <figcaption><span>|Diff| &times; 64</span></figcaption>
+            </figure>
           </div>
-          <table class="tbl" id="nisq-tbl" hidden><thead><tr><th>Circuit</th><th>Qubits</th><th>2Q CX</th><th>Depth</th><th>Dur (&mu;s)</th><th>P[exact]</th></tr></thead><tbody></tbody></table>
+          <div class="chips" id="embed-metrics"></div>
+        </section>
+
+        <!-- RIGHT 2 COLUMNS -->
+        <div class="bento-right">
+          <!-- Column 2 Stacked Cards (Attack + Verify) -->
+          <div class="bento-col-mid">
+            <!-- Step 02: Attack -->
+            <section class="card" id="step2">
+              <div class="card-head">
+                <div class="card-title-group">
+                  <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+                  <h2 class="card-title">02 &middot; Attack &amp; Tamper</h2>
+                </div>
+                <span class="card-dots">&vellip;</span>
+              </div>
+
+              <div class="tabs" role="tablist">
+                <button class="tab active" data-tab="paint">Paint</button>
+                <button class="tab" data-tab="local">Local</button>
+                <button class="tab" data-tab="global">Global</button>
+                <button class="tab" data-tab="none">Clean</button>
+              </div>
+
+              <div class="tabpane" data-pane="paint">
+                <div class="controls" style="align-items:center">
+                  <div class="paintbox"><canvas id="canvas" width="256" height="256"></canvas></div>
+                  <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:130px">
+                    <label class="field">Brush <input type="range" id="brush" min="2" max="24" value="8"></label>
+                    <div class="swatches" id="swatches">
+                      <button class="sw active" data-v="255" style="background:#fff" aria-label="white"></button>
+                      <button class="sw" data-v="128" style="background:#808080" aria-label="grey"></button>
+                      <button class="sw" data-v="0" style="background:#000" aria-label="black"></button>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      <button class="btn ghost" id="paint-reset">Reset</button>
+                      <button class="btn" id="paint-apply">Apply &rarr;</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabpane" data-pane="local" hidden>
+                <div class="controls">
+                  <label class="field">Forgery <select id="local-name"></select></label>
+                  <label class="field">Size <input type="range" id="local-frac" min="0.05" max="0.4" step="0.01" value="0.2"><span id="local-frac-v">0.20</span></label>
+                  <button class="btn" id="local-apply">Apply &rarr;</button>
+                </div>
+                <p class="hint">LSB-preserving splice defeats unkeyed checks while MACs catch it.</p>
+              </div>
+
+              <div class="tabpane" data-pane="global" hidden>
+                <div class="controls">
+                  <label class="field">Attack <select id="global-name"></select></label>
+                  <label class="field" id="global-param-wrap"><span id="global-param-label">param</span> <input type="range" id="global-param"><span id="global-param-v"></span></label>
+                  <button class="btn" id="global-apply">Apply &rarr;</button>
+                </div>
+              </div>
+
+              <div class="tabpane" data-pane="none" hidden>
+                <button class="btn" id="none-apply">Reset to Untouched Watermark &rarr;</button>
+              </div>
+
+              <div class="images one" id="attack-out" hidden>
+                <figure><img id="attacked" alt="attacked"><figcaption><span id="attack-caption">Untouched</span></figcaption></figure>
+              </div>
+            </section>
+
+            <!-- Step 03: Verify -->
+            <section class="card" id="step3">
+              <div class="card-head">
+                <div class="card-title-group">
+                  <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+                  <h2 class="card-title">03 &middot; Blind Verify &amp; Repair</h2>
+                </div>
+                <button class="btn" id="verify">Verify &rarr;</button>
+              </div>
+
+              <div id="verdict" class="verdict" hidden></div>
+              <div class="images two" id="verify-out" hidden>
+                <figure>
+                  <img id="overlay" alt="tamper map">
+                  <figcaption><span>Tamper map</span><a id="dl-overlay" download="tamper_map.png" href="#">PNG &darr;</a></figcaption>
+                </figure>
+                <figure id="recovered-fig" hidden>
+                  <img id="recovered" alt="repaired">
+                  <figcaption><span id="recovered-caption">Repaired</span><a id="dl-recovered" download="repaired.png" href="#">PNG &darr;</a></figcaption>
+                </figure>
+              </div>
+              <p class="note" id="verify-note"></p>
+            </section>
+          </div>
+
+          <!-- Column 3: Step 04 AI Forensic Classifier -->
+          <section class="card" id="step4">
+            <div class="card-head">
+              <div class="card-title-group">
+                <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></span>
+                <h2 class="card-title">04 &middot; Forensic Index</h2>
+              </div>
+              <span class="card-dots">&vellip;</span>
+            </div>
+
+            <div class="kpi-row">
+              <div class="kpi-main">
+                <span class="kpi-val" id="clf-top-pct">162</span>
+                <span class="kpi-unit" id="clf-top-lbl">features</span>
+                <span class="delta-pill lav" id="clf-ood-pill">Ready</span>
+              </div>
+              <button class="btn" id="classify">Identify &rarr;</button>
+            </div>
+            <p class="hint" id="clf-info">Random Forest on 162-d descriptors + calibrated OOD detection.</p>
+
+            <div class="dot-matrix" id="dot-matrix" aria-hidden="true"></div>
+            <div id="bars" class="bars"></div>
+          </section>
+
+          <!-- Featured Matte Dark Charcoal Card (Bottom Spanning Rows 2-3): Step 05 Quantum & NISQ -->
+          <section class="card dark-card" id="step5">
+            <div class="card-head">
+              <div class="card-title-group">
+                <span class="card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/></svg></span>
+                <h2 class="card-title" style="color:#ffffff">05 &middot; Quantum Circuit &amp; NISQ Analysis</h2>
+              </div>
+              <button class="btn lime" id="nisq-run">Simulate NISQ &rarr;</button>
+            </div>
+
+            <div class="dark-stats">
+              <div class="dark-stat">
+                <span class="swatch-pill lime"></span>
+                <div><b id="stat-depth">485</b><span>Shallow CLA depth (vs 888 Lean)</span></div>
+              </div>
+              <div class="dark-stat">
+                <span class="swatch-pill lav"></span>
+                <div><b id="stat-sup">15 qubits</b><span>NEQR exact Statevector + Grover</span></div>
+              </div>
+            </div>
+
+            <!-- Capsule bar visualization mirroring Sleep Analysis dark widget -->
+            <div class="capsule-chart" id="capsule-chart" aria-label="Circuit family comparison">
+              <div class="cap-group">
+                <div class="cap-pair">
+                  <div class="cap-bar hatch" style="height:90px" title="146 qubits"></div>
+                  <div class="cap-bar hatch" style="height:28px" title="depth 158"></div>
+                </div>
+                <span class="cap-lbl">Base v1</span>
+              </div>
+              <div class="cap-group">
+                <div class="cap-pair">
+                  <div class="cap-bar hatch" style="height:36px" title="44 qubits"></div>
+                  <div class="cap-bar hatch" style="height:92px" title="depth 888"></div>
+                </div>
+                <span class="cap-lbl">Lean v2</span>
+              </div>
+              <div class="cap-group hot">
+                <div class="cap-pair">
+                  <div class="cap-bar lime" id="bar-sh-q" style="height:54px" title="69 qubits"></div>
+                  <div class="cap-bar lav" id="bar-sh-d" style="height:52px" title="depth 485"></div>
+                </div>
+                <span class="cap-lbl">Shallow v3 &#8599;</span>
+              </div>
+              <div class="cap-group">
+                <div class="cap-pair">
+                  <div class="cap-bar hatch" style="height:24px" title="15 qubits"></div>
+                  <div class="cap-bar hatch" id="bar-nisq-p" style="height:73px" title="success 73%"></div>
+                </div>
+                <span class="cap-lbl">NEQR Sup</span>
+              </div>
+            </div>
+
+            <div class="controls" style="margin-top:12px">
+              <label class="field">2Q error p2 <input type="range" id="nisq-p2" min="0" max="0.005" step="0.0005" value="0.0005"><span id="nisq-p2-v">0.0005</span></label>
+              <label class="field">Coherence T₁ (&mu;s) <input type="range" id="nisq-t1" min="50" max="1500" step="50" value="300"><span id="nisq-t1-v">300</span></label>
+              <span class="hint" id="block-hint" style="margin:0;color:#a1a1aa">Click a 2&times;2 block on the Cover image in Step 01 for live Qiskit results.</span>
+            </div>
+
+            <div class="tbl-wrap">
+              <table class="tbl" id="nisq-tbl" hidden><thead><tr><th>Circuit</th><th>Qubits</th><th>2Q CX</th><th>Depth</th><th>Dur (&mu;s)</th><th>P[exact]</th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <div id="block-out" class="dark-sub" hidden>
+              <div class="blockgrid">
+                <div>
+                  <h3>Block <span id="block-id"></span></h3>
+                  <table class="kv" id="block-kv"></table>
+                </div>
+                <div>
+                  <h3>Exact Quantum Simulators</h3>
+                  <div class="tbl-wrap"><table class="tbl" id="block-circuits"><thead><tr><th>Circuit</th><th>Qubits</th><th>Output</th></tr></thead><tbody></tbody></table></div>
+                </div>
+              </div>
+              <h3>NEQR Block Circuit &mdash; 8 intensity + 2 position qubits</h3>
+              <div class="neqr"><img id="neqr" alt="NEQR circuit"></div>
+            </div>
+          </section>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
-  <footer class="foot">
-    <div>
-      <span class="wordmark small">neqr&thinsp;·&thinsp;qwm</span>
-      <p>Simulation-level study on classical hardware. No quantum speed-up is claimed.</p>
-    </div>
-    <div>
-      <h4>Reference design</h4>
-      <p><a href="https://doi.org/10.1016/j.array.2026.101035" target="_blank" rel="noopener">Sahu et al., Array 31 (2026) 101035</a></p>
-    </div>
-    <div>
-      <h4>Run it</h4>
-      <p><code>qwm serve</code> &middot; <code>qwm --help</code></p>
-    </div>
-  </footer>
   <div id="toast" class="toast" hidden></div>
   <script src="/app.js"></script>
 </body>
