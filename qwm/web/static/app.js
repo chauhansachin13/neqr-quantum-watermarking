@@ -2,13 +2,16 @@
 // NEQR quantum watermarking - interactive demo front-end (no dependencies).
 
 const $ = (id) => document.getElementById(id);
-const state = { session: null, mode: "keyed", meta: null, paintValue: 255, imageSize: 256 };
+const state = { session: null, mode: "keyed-opt", meta: null, paintValue: 255, imageSize: 256, blockRow: 0, blockCol: 0 };
 
 const MODE_INFO = {
   paper: { title: "Base: literal rule", tag: "base", text: "RPA → XOR → QE → Pauli-X exactly as written in the paper." },
   lsb: { title: "Base: LSB replacement", tag: "base", text: "Content code PPB ⊕ AA in the two LSBs; checking it needs the stored reference bits." },
-  keyed: { title: "Keyed blind authentication", tag: "new", text: "Content code ⊕ keyed one-time MAC. Verify with the key alone; 2×2 localisation." },
-  recovery: { title: "Keyed self-recovery", tag: "new", text: "Blocks carry a partner's AA recovery code + a 12-bit MAC: detect and repair." },
+  opap: { title: "Base v3: OPAP", tag: "v3", text: "Optimal Pixel Adjustment Process shifts ±4 MSBs where valid, boosting PSNR from ~44.1 to ~46.4 dB." },
+  keyed: { title: "Keyed blind authentication", tag: "v2", text: "Content code ⊕ keyed one-time MAC. Verify with the key alone; 2×2 localisation." },
+  "keyed-opt": { title: "Keyed blind authentication (optimal)", tag: "v3", text: "81-coset MSB search per 2×2 block: ~46.4 dB PSNR with 100% unchanged blind receiver verification." },
+  recovery: { title: "Keyed self-recovery (4×4)", tag: "v2", text: "Blocks carry a partner's AA recovery code + a 12-bit MAC: detect and repair." },
+  "recovery-dual": { title: "Dual-partner Haar recovery (8×8)", tag: "v3", text: "68-bit primary + 44-bit secondary companded Haar codes + 16-bit MAC (2^-16 forgery, >97% code recovery)." },
 };
 
 // main slider of every global attack: [param, min, max, step, default, label]
@@ -64,11 +67,11 @@ function renderModes() {
     const lab = document.createElement("label");
     lab.className = "mode" + (mode === state.mode ? " selected" : "");
     lab.innerHTML = `<input type="radio" name="mode" value="${mode}" ${mode === state.mode ? "checked" : ""}><span class="dot"></span>
-      <span><b>${info.title}<span class="tag">${info.tag === "new" ? "v2" : "base"}</span></b><small>${info.text}</small></span>`;
+      <span><b>${info.title}<span class="tag">${info.tag}</span></b><small>${info.text}</small></span>`;
     lab.querySelector("input").addEventListener("change", () => {
       state.mode = mode;
       document.querySelectorAll(".mode").forEach((m) => m.classList.toggle("selected", m.querySelector("input").checked));
-      $("keyrow").style.display = mode === "keyed" || mode === "recovery" ? "" : "none";
+      $("keyrow").style.display = mode.startsWith("keyed") || mode.startsWith("recovery") ? "" : "none";
     });
     box.appendChild(lab);
   }
@@ -124,6 +127,7 @@ async function embed() {
   state.session = r.session;
   $("cover").src = r.cover;
   $("watermarked").src = r.watermarked;
+  $("dl-watermarked").href = r.watermarked;
   setHero(r.watermarked);
   $("difference").src = r.difference;
   $("embed-out").hidden = false;
@@ -251,6 +255,7 @@ async function verify() {
   if (!state.session) throw new Error("embed an image first");
   const r = await api("/api/verify", { session: state.session });
   $("overlay").src = r.overlay;
+  $("dl-overlay").href = r.overlay;
   $("verify-out").hidden = false;
   const v = $("verdict");
   v.hidden = false;
@@ -264,6 +269,7 @@ async function verify() {
   const rf = $("recovered-fig");
   if (r.recovered) {
     $("recovered").src = r.recovered;
+    $("dl-recovered").href = r.recovered;
     $("recovered-caption").textContent = `repaired · PSNR ${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB · ${fmt(100 * r.restored_fraction, 0)} % rebuilt from codes`;
     rf.hidden = false;
   } else rf.hidden = true;
@@ -275,14 +281,19 @@ async function classify() {
   const r = await api("/api/classify", { session: state.session });
   $("clf-info").textContent = r.info;
   if (!r.ready) return toast("the classifier is still training, try again in a few seconds");
+  const oodNote = r.is_unknown
+    ? ` · <b>FLAGGED UNKNOWN / OOD</b> (confidence ${fmt(100 * r.confidence, 1)}% &lt; threshold ${fmt(100 * r.threshold, 1)}%)`
+    : ` · confidence ${fmt(100 * r.confidence, 1)}% (threshold ${fmt(100 * r.threshold, 1)}%)`;
   $("bars").innerHTML = r.probabilities
     .map(
       (p, i) => `<div class="bar ${i === 0 ? "best" : ""}"><span>${p.name}</span><div class="track"><div class="fill" style="width:${(100 * p.p).toFixed(1)}%"></div></div><span class="pct">${(100 * p.p).toFixed(1)}%</span></div>`
     )
-    .join("") + `<p class="hint">applied: <b>${r.actual}</b> · predicted: <b>${r.predicted}</b></p>`;
+    .join("") + `<p class="hint">applied: <b>${r.actual}</b> · predicted: <b>${r.predicted}</b>${oodNote}</p>`;
 }
 
 async function inspectBlock(row, col) {
+  state.blockRow = row;
+  state.blockCol = col;
   const r = await api("/api/block", { session: state.session, row, col });
   $("block-id").textContent = `(${row}, ${col})`;
   const t = r.trace;
@@ -299,7 +310,23 @@ async function inspectBlock(row, col) {
     .join("");
   $("neqr").src = r.neqr;
   $("block-out").hidden = false;
+  $("nisq-tbl").hidden = true;
   $("block-hint").textContent = `Simulated exactly in ${fmt(Object.values(r.timings_ms).reduce((a, b) => a + b, 0), 0)} ms. Click another block to compare.`;
+}
+
+async function runBlockNisq() {
+  if (!state.session) throw new Error("embed an image first");
+  const r = await api("/api/nisq_block", {
+    session: state.session,
+    row: state.blockRow,
+    col: state.blockCol,
+    p2: Number($("nisq-p2").value),
+    t1_us: Number($("nisq-t1").value),
+  });
+  $("nisq-tbl").querySelector("tbody").innerHTML = r.rows
+    .map((row) => `<tr><td>${row.name}</td><td>${row.qubits}</td><td>${row.two_qubit_gates}</td><td>${row.depth}</td><td>${fmt(row.duration_us, 1)}</td><td>${fmt(100 * row.success, 1)}%</td></tr>`)
+    .join("");
+  $("nisq-tbl").hidden = false;
 }
 
 // --------------------------------------------------------------------------- look and feel
@@ -396,5 +423,8 @@ document.addEventListener("DOMContentLoaded", () => {
   $("none-apply").addEventListener("click", (e) => busy(e.target, () => attack({ kind: "none" })));
   $("verify").addEventListener("click", (e) => busy(e.target, verify));
   $("classify").addEventListener("click", (e) => busy(e.target, classify));
+  $("nisq-p2").addEventListener("input", () => ($("nisq-p2-v").textContent = $("nisq-p2").value));
+  $("nisq-t1").addEventListener("input", () => ($("nisq-t1-v").textContent = $("nisq-t1").value));
+  $("nisq-run").addEventListener("click", (e) => busy(e.target, runBlockNisq));
   $("upload").addEventListener("change", () => $("upload").files[0] && ($("image").disabled = true));
 });

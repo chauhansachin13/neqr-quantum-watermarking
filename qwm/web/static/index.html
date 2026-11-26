@@ -42,11 +42,11 @@
 
   <!-- metric strip -------------------------------------------------------- -->
   <section class="metrics" id="metrics" aria-label="Key numbers">
-    <div><b>44.2<small>dB</small></b><span>PSNR at 2 bits per pixel</span></div>
-    <div><b>2<sup>&minus;8</sup></b><span>chance a forged 2&times;2 block passes</span></div>
-    <div><b>44<small>qubits</small></b><span>per block, vs 354 reported</span></div>
+    <div><b>46.4<small>dB</small></b><span>v3 OPAP / optimal-coset PSNR at 2 bpp</span></div>
+    <div><b>2<sup>&minus;16</sup></b><span>chance a forged 8&times;8 dual-partner block passes</span></div>
+    <div><b>44 / 69<small>q</small></b><span>lean Cuccaro vs shallow log-depth CLA</span></div>
     <div><b>0</b><span>false alarms on untouched blocks</span></div>
-    <div><b>86.5<small>%</small></b><span>attack type on cover images never seen in training</span></div>
+    <div><b>162<small>dim</small></b><span>multi-domain forensic descriptors + OOD gate</span></div>
   </section>
 
   <main>
@@ -70,7 +70,7 @@
         <button class="btn" id="embed">Embed watermark <span class="arrow">&rarr;</span></button>
         <div class="images three" id="embed-out" hidden>
           <figure><div class="pick"><img id="cover" alt="cover"><div id="pickbox" class="pickbox" hidden></div></div><figcaption>Cover &mdash; <em>click a 2&times;2 block for 05</em></figcaption></figure>
-          <figure><img id="watermarked" alt="watermarked"><figcaption>Watermarked</figcaption></figure>
+          <figure><img id="watermarked" alt="watermarked"><figcaption>Watermarked &middot; <a id="dl-watermarked" download="watermarked.png" href="#">download PNG</a></figcaption></figure>
           <figure><img id="difference" alt="difference"><figcaption>|Difference| &times; 64</figcaption></figure>
         </div>
         <div class="chips" id="embed-metrics"></div>
@@ -143,8 +143,8 @@
         <button class="btn" id="verify">Verify <span class="arrow">&rarr;</span></button>
         <div id="verdict" class="verdict" hidden></div>
         <div class="images two" id="verify-out" hidden>
-          <figure><img id="overlay" alt="tamper map"><figcaption>Failed blocks in red</figcaption></figure>
-          <figure id="recovered-fig" hidden><img id="recovered" alt="repaired"><figcaption id="recovered-caption">Repaired</figcaption></figure>
+          <figure><img id="overlay" alt="tamper map"><figcaption>Failed blocks in red &middot; <a id="dl-overlay" download="tamper_map.png" href="#">download PNG</a></figcaption></figure>
+          <figure id="recovered-fig" hidden><img id="recovered" alt="repaired"><figcaption><span id="recovered-caption">Repaired</span> &middot; <a id="dl-recovered" download="repaired.png" href="#">download PNG</a></figcaption></figure>
         </div>
         <p class="note" id="verify-note"></p>
         <a class="next" href="#step4">Next step <span>&rarr;</span></a>
@@ -186,6 +186,13 @@
           </div>
           <h3>NEQR encoding of this block &mdash; 8 intensity + 2 position qubits</h3>
           <div class="neqr"><img id="neqr" alt="NEQR circuit"></div>
+          <h3>Live NISQ noise comparison (Lean Cuccaro vs v3 Shallow CLA under T<sub>1</sub>/T<sub>2</sub> + gate noise)</h3>
+          <div class="controls">
+            <label class="field">2Q error p2 <input type="range" id="nisq-p2" min="0" max="0.005" step="0.0005" value="0.0005"><span id="nisq-p2-v">0.0005</span></label>
+            <label class="field">T<sub>1</sub> (&mu;s) <input type="range" id="nisq-t1" min="50" max="1500" step="50" value="300"><span id="nisq-t1-v">300</span></label>
+            <button class="btn ghost" id="nisq-run">Simulate block noise <span class="arrow">&rarr;</span></button>
+          </div>
+          <table class="tbl" id="nisq-tbl" hidden><thead><tr><th>Circuit</th><th>Qubits</th><th>2Q CX</th><th>Depth</th><th>Dur (&mu;s)</th><th>P[exact]</th></tr></thead><tbody></tbody></table>
         </div>
       </div>
     </section>

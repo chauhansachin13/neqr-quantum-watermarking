@@ -3,7 +3,7 @@
 [![CI](https://github.com/chauhansachin13/neqr-quantum-watermarking/actions/workflows/ci.yml/badge.svg)](https://github.com/chauhansachin13/neqr-quantum-watermarking/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Qiskit](https://img.shields.io/badge/qiskit-%E2%89%A51.0-6929c4.svg)](https://qiskit.org/)
-[![Version](https://img.shields.io/badge/version-2.0-black.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0-black.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A complete, tested implementation of a **simulation-level quantum image
@@ -15,17 +15,16 @@ image-processing attack a watermarked image suffered.
 
 **v1** reproduces the design published in *AI-assisted simulation-based quantum
 image watermarking using NEQR and reversible quantum logic* (Array 31, 2026,
-101035) as faithfully as the paper allows. **v2** takes up the paper's
+101035) as faithfully as the paper allows. **v2** and **v3** extend the paper's
 limitations and future-work list:
 
-* a keyed, **blind**, forgery-resistant watermark;
-* **tamper localisation with self-recovery**;
-* **hardware-efficient circuits** with 8× fewer qubits;
-* a **NISQ feasibility study** with noisy simulation on IBM-style heavy-hex
-  hardware;
-* a **stricter evaluation** of the classifier;
+* a keyed, **blind**, forgery-resistant watermark (`46.37 dB` with `keyed-opt`, `2⁻¹⁶` MAC in 8×8 `recovery-dual`);
+* **dual-partner tamper localisation with companded-Haar self-recovery**;
+* **hardware-efficient & log-depth CLA circuits** (`44` qubits lean Cuccaro, `69` qubits shallow Brent-Kung CLA) plus **true NEQR superposition & Grover tamper oracle circuits**;
+* a **NISQ feasibility study** including **ALAP-scheduled T1/T2 thermal relaxation + idle decoherence** on IBM-style lattices;
+* a **162-d multi-domain forensic classifier** with calibrated open-set OOD detection;
 * consistency checks of reported numbers;
-* an **interactive web demo**.
+* an **interactive web demo** with PNG export and live noisy block simulation.
 
 Everything runs on classical hardware. No quantum advantage is claimed.
 
@@ -71,22 +70,26 @@ The scikit-image samples and synthetic images work offline (`--offline`).
 ```bash
 qwm serve                     # interactive demo on http://127.0.0.1:8765
 qwm demo                      # the worked 2x2 example through every stage (classical + Qiskit circuits)
+qwm superposition             # v3: full NEQR superposition PPB, Grover tamper search, & 47q MPS verification
 ```
 
-Blind, keyed watermarking (v2):
+Blind, keyed watermarking (v2 / v3):
 
 ```bash
-qwm embed peppers --mode recovery --key "my secret" --nonce img-001 -o wm.png
-qwm verify wm.png --mode recovery --key "my secret" --nonce img-001 --overlay map.png --recovered fixed.png
+qwm embed peppers --mode keyed-opt --key "my secret" --nonce img-001 -o wm_opt.png
+qwm verify wm_opt.png --mode keyed --key "my secret" --nonce img-001 --overlay map.png
+
+qwm embed peppers --mode recovery-dual --key "my secret" --nonce img-001 -o wm_dual.png
+qwm verify wm_dual.png --mode recovery-dual --key "my secret" --nonce img-001 --overlay map.png --recovered fixed.png
 ```
 
 Base scheme and experiments:
 
 ```bash
-qwm embed lena -o wm.png --mode lsb --save-watermark wb.npy   # base scheme (needs the reference bits)
+qwm embed lena -o wm.png --mode opap --save-watermark wb.npy   # base scheme + OPAP (~46.4 dB)
 qwm extract wm.png --reference wb.npy
 qwm evaluate | attacks | quantum-metrics | classify | resources | draw     # v1 reproduction
-qwm tamper-study | nisq | classifier-benchmark | paper-checks             # v2 studies
+qwm tamper-study | nisq --shallow --thermal | classifier-benchmark | paper-checks
 bash scripts/reproduce_all.sh                                             # everything
 ```
 
@@ -428,17 +431,17 @@ qwm/
   simulation.py        exact permutation-circuit simulator, Aer helpers
   gates/               RHA/RFA/RPA, RHS/RFS/RPS, D4, QE (module-faithful)
   watermark/           base scheme: generation, embedding, extraction (vectorised)
-  circuits/            base-scheme block circuits; lean.py (Cuccaro, 44 qubits); secure.py (keyed, blind)
-  secure/              v2: keys.py (SHAKE-256, Toeplitz MAC, derangement), authentication.py, recovery.py
+  circuits/            base-scheme circuits; lean.py (Cuccaro, 44q); shallow.py (BK CLA, 69q); secure.py (keyed); superposition.py (NEQR/Grover)
+  secure/              v2/v3: keys.py, authentication.py (81-coset optimal), recovery.py (4x4 & dual 8x8 Haar)
   tamper.py            v2: local manipulations and localisation metrics
-  nisq.py              v2: heavy-hex compilation, noise models, Aer success probability
+  nisq.py              v2/v3: heavy-hex compilation, depolarising + ALAP T1/T2 thermal relaxation noise
   paper_checks.py      v2: Fuchs-van de Graaf check of Table 9, PSNR bounds at 2 bpp
-  studies.py           v2: tamper / NISQ / classifier / consistency study runners
+  studies.py           v2/v3: tamper / NISQ / thermal / classifier / consistency study runners
   metrics/ attacks.py classifier/ resources.py experiments.py cli.py
-  web/                 v2: qwm serve (stdlib HTTP server + static single-page app)
-docs/                  IMPROVEMENTS.md (v2), algorithm.md (v1), images/
+  web/                 v2/v3: qwm serve (stdlib HTTP server + static SPA with live NISQ & PNG export)
+docs/                  IMPROVEMENTS.md (v2/v3), algorithm.md (v1), images/
 scripts/               reproduce_all.sh, worked_example.py, train_classifier.py
-tests/                 pytest suite (167 tests)
+tests/                 pytest suite (198 tests)
 results/               generated tables and figures
 ```
 

@@ -45,18 +45,26 @@ from sklearn.svm import SVC
 
 from qwm.attacks import UNSEEN_ATTACKS, apply_unseen_attack, random_unseen_params
 from qwm.classifier.dataset import CLASS_NAMES, augment_cover, iter_attacked_samples
-from qwm.classifier.features import descriptor_names, image_descriptors, image_to_feature
+from qwm.classifier.features import (
+    descriptor_names,
+    descriptor_v2_names,
+    image_descriptors,
+    image_descriptors_v2,
+    image_to_feature,
+)
 from qwm.classifier.train import make_classifier
 from qwm.watermark.embedding import embed_image
 
 __all__ = [
     "BenchmarkData",
+    "CalibratedOpenSetDetector",
     "build_benchmark_data",
     "benchmark_splits",
     "candidate_models",
     "mcnemar_exact",
     "compare_models",
     "open_set_evaluation",
+    "unseen_attack_samples",
     "top_features",
 ]
 
@@ -80,17 +88,21 @@ def build_benchmark_data(
     params: str = "random",
     mode: str = "lsb",
     pixel_sizes=(64, 256),
+    include_v2_descriptors: bool = False,
     verbose: bool = False,
 ) -> BenchmarkData:
     """Generate the attacked images once and compute every feature set from them."""
     t0 = time.perf_counter()
     n = samples_per_class * len(CLASS_NAMES)
     desc = np.empty((n, len(descriptor_names())), dtype=np.float32)
+    desc2 = np.empty((n, len(descriptor_v2_names())), dtype=np.float32) if include_v2_descriptors else None
     pix = {s: np.empty((n, s * s), dtype=np.float32) for s in pixel_sizes}
     y = np.empty(n, dtype=np.int64)
     g = np.empty(n, dtype=np.int64)
     for row, (label, _name, cover_idx, _params, attacked) in enumerate(iter_attacked_samples(covers, samples_per_class, size, mode, seed, params)):
         desc[row] = image_descriptors(attacked, size)
+        if desc2 is not None:
+            desc2[row] = image_descriptors_v2(attacked, size)
         for s in pixel_sizes:
             pix[s][row] = image_to_feature(attacked, s)
         y[row] = label
@@ -98,6 +110,8 @@ def build_benchmark_data(
         if verbose and (row + 1) % (samples_per_class * 3) == 0:
             print(f"  {row + 1}/{n} samples")
     feats = {"descriptors": desc}
+    if desc2 is not None:
+        feats["descriptors_v2"] = desc2
     for s in pixel_sizes:
         feats[f"pixels{s}"] = pix[s]
     return BenchmarkData(y=y, groups=g, features=feats, n_covers=len(covers), build_time_s=time.perf_counter() - t0)
@@ -189,10 +203,18 @@ def compare_models(
 # --------------------------------------------------------------------------- #
 # Open-set detection of attacks outside the training classes
 # --------------------------------------------------------------------------- #
-def unseen_attack_samples(covers: list[np.ndarray], per_attack: int = 100, size: int = 256, seed: int = 7, mode: str = "lsb"):
+def unseen_attack_samples(
+    covers: list[np.ndarray],
+    per_attack: int = 100,
+    size: int = 256,
+    seed: int = 7,
+    mode: str = "lsb",
+    feature_kind: str = "descriptors",
+):
     """Descriptor vectors of watermarked images hit by attacks never seen in training."""
     rng = np.random.default_rng(seed)
     X, names = [], []
+    fn = image_descriptors_v2 if feature_kind == "descriptors_v2" else image_descriptors
     for name in UNSEEN_ATTACKS:
         for _ in range(per_attack):
             cover = augment_cover(covers[int(rng.integers(0, len(covers)))], rng, size)
@@ -200,9 +222,42 @@ def unseen_attack_samples(covers: list[np.ndarray], per_attack: int = 100, size:
             attacked = apply_unseen_attack(wm, name, seed=int(rng.integers(0, 2**31 - 1)), **random_unseen_params(name, rng))
             if attacked.shape != (size, size):
                 attacked = cv2.resize(attacked, (size, size))
-            X.append(image_descriptors(attacked, size))
+            X.append(fn(attacked, size))
             names.append(name)
     return np.asarray(X, dtype=np.float32), np.asarray(names)
+
+
+class CalibratedOpenSetDetector:
+    """Wrap any probabilistic classifier with a calibrated open-set rejection gate.
+
+    Threshold ``tau`` is calibrated at the ``1 - keep`` quantile of known-attack
+    confidence scores on held-out in-distribution samples so ``keep`` (e.g. 95 %)
+    of known attacks are accepted while out-of-distribution attacks falling below
+    ``tau`` are flagged as unknown.
+    """
+
+    def __init__(self, estimator, keep: float = 0.95):
+        self.estimator = estimator
+        self.keep = float(keep)
+        self.threshold: float = 0.5
+
+    def calibrate(self, X_known: np.ndarray) -> CalibratedOpenSetDetector:
+        conf = np.asarray(self.estimator.predict_proba(X_known)).max(axis=1)
+        self.threshold = float(np.quantile(conf, 1.0 - self.keep))
+        return self
+
+    def predict_with_rejection(self, X: np.ndarray) -> dict:
+        probs = np.asarray(self.estimator.predict_proba(X), dtype=float)
+        idx = probs.argmax(axis=1)
+        conf = probs[np.arange(len(probs)), idx]
+        is_unknown = conf < self.threshold
+        return {
+            "probs": probs,
+            "pred_index": idx,
+            "confidence": conf,
+            "is_unknown": is_unknown,
+            "threshold": self.threshold,
+        }
 
 
 def open_set_evaluation(model, X_known_test: np.ndarray, y_known_test: np.ndarray, X_unseen: np.ndarray, unseen_names: np.ndarray, keep: float = 0.95) -> dict:
@@ -239,7 +294,10 @@ def open_set_evaluation(model, X_known_test: np.ndarray, y_known_test: np.ndarra
 
 
 def top_features(model, names: list[str] | None = None, k: int = 15) -> list[tuple[str, float]]:
-    names = names or descriptor_names()
+    if names is None and hasattr(model, "n_features_in_") and int(model.n_features_in_) == len(descriptor_v2_names()):
+        names = descriptor_v2_names()
+    else:
+        names = names or descriptor_names()
     imp = np.asarray(model.feature_importances_)
     order = np.argsort(imp)[::-1][:k]
     return [(names[i], float(imp[i])) for i in order]

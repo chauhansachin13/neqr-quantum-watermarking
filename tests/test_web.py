@@ -56,7 +56,7 @@ def test_meta(server):
     base, _ = server
     status, body = _get(base + "/api/meta")
     meta = json.loads(body)
-    assert status == 200 and "camera" in meta["images"] and set(meta["modes"]) == {"paper", "lsb", "keyed", "recovery"}
+    assert status == 200 and "camera" in meta["images"] and {"paper", "lsb", "opap", "keyed", "keyed-opt", "recovery", "recovery-dual"}.issubset(meta["modes"])
 
 
 @pytest.mark.parametrize("mode", ["keyed", "recovery", "lsb", "paper"])

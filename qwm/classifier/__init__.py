@@ -11,6 +11,7 @@ from qwm.classifier.features import (
     FEATURE_KINDS,
     extract_features,
     image_descriptors,
+    image_descriptors_v2,
     image_to_feature,
 )
 from qwm.classifier.train import (
@@ -41,6 +42,7 @@ __all__ = [
     "FEATURE_KINDS",
     "extract_features",
     "image_descriptors",
+    "image_descriptors_v2",
     "image_to_feature",
     "make_classifier",
     "plot_confusion_matrix",

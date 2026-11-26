@@ -47,6 +47,9 @@ __all__ = [
     "noise_model",
     "success_probability",
     "threshold",
+    "build_hardware_target",
+    "schedule_circuit",
+    "thermal_success_probability",
 ]
 
 WORKED_BLOCK = np.array([[50, 60], [48, 32]])
@@ -78,7 +81,12 @@ def _pixel_bits(circuit: QuantumCircuit, regs, pixels) -> tuple[list[int], list[
     return outs, exp
 
 
-def block_tasks(block=WORKED_BLOCK, key: str = "nisq-demo-key", nonce: str = "block") -> list[BlockTask]:
+def block_tasks(
+    block=WORKED_BLOCK,
+    key: str = "nisq-demo-key",
+    nonce: str = "block",
+    include_shallow: bool = False,
+) -> list[BlockTask]:
     """All circuit families evaluated by the study, built for one block."""
     from qwm.circuits import (
         WatermarkEmbeddingCircuit,
@@ -120,6 +128,40 @@ def block_tasks(block=WORKED_BLOCK, key: str = "nisq-demo-key", nonce: str = "bl
     tasks.append(BlockTask("keyed embedding", "keyed", "embedding", se.circuit, o, e))
     bv = BlindVerificationCircuit(np.asarray(watermarked).reshape(2, 2), key, nonce, shape, 0, 0)
     tasks.append(BlockTask("keyed blind verification", "keyed", "verification", bv.circuit, [bv.circuit.find_bit(bv.flag[0]).index], [1]))
+
+    if include_shallow:
+        from qwm.circuits.shallow import (
+            ShallowBlindVerificationCircuit,
+            ShallowGenerationCircuit,
+            ShallowKeyedEmbeddingCircuit,
+        )
+
+        sg = ShallowGenerationCircuit(block)
+        tasks.append(
+            BlockTask(
+                "shallow generation",
+                "shallow",
+                "generation",
+                sg.circuit,
+                [sg.circuit.find_bit(q).index for q in sg.layout.out],
+                wb,
+            )
+        )
+        sse = ShallowKeyedEmbeddingCircuit(block, key, nonce, shape, 0, 0)
+        s_wm = sse.run()["watermarked_pixels"]
+        so, se_bits = _pixel_bits(sse.circuit, sse.layout.pixels, s_wm)
+        tasks.append(BlockTask("shallow keyed embedding", "shallow", "embedding", sse.circuit, so, se_bits))
+        sbv = ShallowBlindVerificationCircuit(np.asarray(s_wm).reshape(2, 2), key, nonce, shape, 0, 0)
+        tasks.append(
+            BlockTask(
+                "shallow blind verification",
+                "shallow",
+                "verification",
+                sbv.circuit,
+                [sbv.circuit.find_bit(sbv.flag[0]).index],
+                [1],
+            )
+        )
     return tasks
 
 
@@ -259,3 +301,112 @@ def threshold(p_values, success_values, target: float) -> float | None:
             lp = np.log10(p[i]) + (target - s[i]) * (np.log10(p[i + 1]) - np.log10(p[i])) / (s[i + 1] - s[i])
             return float(10**lp)
     return None
+
+
+def build_hardware_target(
+    num_qubits: int,
+    dt_1q: float = 32e-9,
+    dt_2q: float = 68e-9,
+    dt_meas: float = 800e-9,
+    coupling_map: CouplingMap | None = None,
+):
+    """Build a Qiskit ``Target`` with superconducting-scale gate and measurement durations."""
+    from qiskit.circuit import Measure, Parameter
+    from qiskit.circuit.library import CXGate, RZGate, SXGate, XGate
+    from qiskit.transpiler import InstructionProperties, Target
+
+    target = Target(num_qubits=num_qubits, dt=1e-9)
+    single = {(q,): InstructionProperties(duration=dt_1q) for q in range(num_qubits)}
+    virtual = {(q,): InstructionProperties(duration=0.0) for q in range(num_qubits)}
+    meas = {(q,): InstructionProperties(duration=dt_meas) for q in range(num_qubits)}
+    if coupling_map is None:
+        pairs = {(i, j): InstructionProperties(duration=dt_2q) for i in range(num_qubits) for j in range(num_qubits) if i != j}
+    else:
+        pairs = {(int(u), int(v)): InstructionProperties(duration=dt_2q) for u, v in coupling_map.get_edges()}
+    target.add_instruction(RZGate(Parameter("theta")), virtual)
+    target.add_instruction(SXGate(), single)
+    target.add_instruction(XGate(), single)
+    target.add_instruction(CXGate(), pairs)
+    target.add_instruction(Measure(), meas)
+    return target
+
+
+def schedule_circuit(
+    compiled: QuantumCircuit,
+    dt_1q: float = 32e-9,
+    dt_2q: float = 68e-9,
+    dt_meas: float = 800e-9,
+):
+    """ALAP-schedule ``compiled`` and pad idle wires with explicit ``Delay`` instructions."""
+    from qiskit.transpiler import PassManager
+    from qiskit.transpiler.passes import ALAPScheduleAnalysis, PadDelay
+
+    target = build_hardware_target(compiled.num_qubits, dt_1q=dt_1q, dt_2q=dt_2q, dt_meas=dt_meas)
+    pm = PassManager([ALAPScheduleAnalysis(target=target), PadDelay(target=target)])
+    scheduled = pm.run(compiled)
+    idle_ns = sum(int(inst.operation.duration) for inst in scheduled.data if inst.operation.name == "delay")
+    return scheduled, target, float(scheduled.estimate_duration(target) * 1e6), float(idle_ns / 1e3)
+
+
+def thermal_success_probability(
+    compiled: QuantumCircuit,
+    expected_key: str,
+    t1: float = 300e-6,
+    t2: float = 200e-6,
+    p2: float = 0.0,
+    p1: float | None = None,
+    p_meas: float = 0.0,
+    dt_1q: float = 32e-9,
+    dt_2q: float = 68e-9,
+    dt_meas: float = 800e-9,
+    shots: int = 1000,
+    seed: int = 7,
+    threads: int = 0,
+) -> dict:
+    """Aer (MPS) estimate under ALAP-scheduled T1/T2 thermal relaxation + gate depolarising noise."""
+    from qiskit.circuit import Delay
+    from qiskit.circuit.library import CXGate, SXGate, XGate
+    from qiskit_aer import AerSimulator
+    from qiskit_aer.noise import RelaxationNoisePass
+
+    scheduled, target, duration_us, idle_us = schedule_circuit(
+        compiled,
+        dt_1q=dt_1q,
+        dt_2q=dt_2q,
+        dt_meas=dt_meas,
+    )
+    nq = scheduled.num_qubits
+    rpass = RelaxationNoisePass(
+        t1s=[t1] * nq,
+        t2s=[t2] * nq,
+        target=target,
+        op_types=[Delay, SXGate, XGate, CXGate],
+    )
+    noisy_circ = rpass(scheduled)
+    nm = noise_model(p2, p1, p_meas) if (p2 > 0 or (p1 or 0) > 0 or p_meas > 0) else None
+    sim = AerSimulator(
+        method="matrix_product_state",
+        noise_model=nm,
+        seed_simulator=seed,
+        max_parallel_threads=threads,
+    )
+    counts = sim.run(noisy_circ, shots=shots).result().get_counts()
+    good = counts.get(expected_key, 0)
+    n_bits = len(expected_key)
+    ref = np.array([int(c) for c in expected_key])
+    wrong_bits = 0
+    for key, c in counts.items():
+        k = key.replace(" ", "")
+        wrong_bits += c * int(np.sum(np.array([int(ch) for ch in k]) != ref))
+    p = good / shots
+    stderr = float(np.sqrt(max(p * (1 - p), 1.0 / shots) / shots))
+    return {
+        "success": p,
+        "stderr": stderr,
+        "bit_error_rate": wrong_bits / (shots * n_bits),
+        "duration_us": duration_us,
+        "total_idle_us": idle_us,
+        "t1_us": float(t1 * 1e6),
+        "t2_us": float(t2 * 1e6),
+        "shots": shots,
+    }

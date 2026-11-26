@@ -58,15 +58,25 @@ def cmd_demo(args) -> int:
     return 0
 
 
-KEYED_MODES = ("keyed", "recovery")
+KEYED_MODES = ("keyed", "keyed-opt", "recovery", "recovery-dual")
 
 
 def _keyed_scheme(mode: str, key: str | None, nonce: str):
-    from qwm.secure import SecureWatermark, SelfRecoveringWatermark
+    from qwm.secure import (
+        DualPartnerSelfRecoveringWatermark,
+        SecureWatermark,
+        SelfRecoveringWatermark,
+    )
 
     if not key:
         raise SystemExit(f"--key is required for --mode {mode}")
-    return SecureWatermark(key, nonce) if mode == "keyed" else SelfRecoveringWatermark(key, nonce)
+    if mode == "keyed":
+        return SecureWatermark(key, nonce)
+    if mode == "keyed-opt":
+        return SecureWatermark(key, nonce, optimize=True)
+    if mode == "recovery":
+        return SelfRecoveringWatermark(key, nonce)
+    return DualPartnerSelfRecoveringWatermark(key, nonce)
 
 
 def cmd_embed(args) -> int:
@@ -96,12 +106,15 @@ def cmd_verify(args) -> int:
 
     img = load_image(args.image, None)
     scheme = _keyed_scheme(args.mode, args.key, args.nonce)
-    if args.mode == "keyed":
+    if args.mode in ("keyed", "keyed-opt"):
         res = scheme.verify(img)
         tamper, block = res.tamper_map, 2
-    else:
+    elif args.mode == "recovery":
         res = scheme.recover(img)
         tamper, block = res.tamper_map, 4
+    else:
+        res = scheme.recover(img)
+        tamper, block = res.tamper_map, 8
     n_bad, n = int(tamper.sum()), int(tamper.size)
     verdict = "AUTHENTIC" if n_bad == 0 else f"TAMPERED: {n_bad} of {n} blocks ({100 * n_bad / n:.2f} %) failed"
     print(f"{args.image}: {verdict}")
@@ -111,7 +124,7 @@ def cmd_verify(args) -> int:
         Path(args.overlay).parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(args.overlay), cv2.cvtColor(_overlay(img, tamper, block), cv2.COLOR_RGB2BGR))
         print(f"tamper map written to {args.overlay}")
-    if args.mode == "recovery" and n_bad and args.recovered:
+    if args.mode in ("recovery", "recovery-dual") and n_bad and args.recovered:
         save_image(res.recovered, args.recovered)
         print(f"repaired image written to {args.recovered} ({100 * res.restored_fraction:.1f} % of failed blocks rebuilt from recovery codes)")
     return 0 if n_bad == 0 else 2
@@ -231,12 +244,58 @@ def cmd_tamper_study(args) -> int:
 
 
 def cmd_nisq(args) -> int:
-    from qwm.studies import DEFAULT_P2, nisq_study
+    from qwm.studies import DEFAULT_P2, nisq_study, thermal_nisq_study
 
     p_values = [float(v) for v in args.p2.split(",")] if args.p2 else DEFAULT_P2
-    out = nisq_study(p_values, shots=args.shots, out_dir=args.out, verbose=True, workers=args.workers)
+    out = nisq_study(
+        p_values,
+        shots=args.shots,
+        out_dir=args.out,
+        verbose=True,
+        workers=args.workers,
+        include_shallow=getattr(args, "shallow", False),
+    )
     print(out["resources"].to_string(index=False))
     print(out["thresholds"].to_string(index=False))
+    if getattr(args, "thermal", False):
+        df_th = thermal_nisq_study(shots=min(args.shots, 500), out_dir=args.out)
+        print("\nT1/T2 ALAP thermal relaxation comparison:")
+        print(df_th.to_string(index=False, float_format=lambda v: f"{v:.4f}"))
+    return 0
+
+
+def cmd_superposition(args) -> int:
+    from qwm.circuits.superposition import (
+        block_neqr_blind_verify,
+        run_block_neqr_superposition,
+        run_grover_tamper_search,
+        run_neqr_ppb_superposition,
+    )
+    from qwm.data import load_image
+    from qwm.secure import SecureWatermark
+    from qwm.watermark.generation import pixel_position_bits
+
+    patch = load_image(args.image, 16)[:4, :4]
+    ppb_res = run_neqr_ppb_superposition(patch)
+    auth = (patch & 0xFC).copy()
+    for r in range(4):
+        for c in range(4):
+            b0, b1 = pixel_position_bits(int(auth[r, c]))
+            auth[r, c] |= b0 | (b1 << 1)
+    tampered = auth.copy()
+    tampered[2, 1] ^= 0b01
+    gr_res = run_grover_tamper_search(tampered)
+    blk_res = run_block_neqr_superposition(patch, shots=args.shots)
+
+    sw = SecureWatermark(args.key, "cli-superposition")
+    wm = sw.embed(patch)
+    wm[2:4, 0:2] ^= 0b11
+    bv_res = block_neqr_blind_verify(wm, args.key, "cli-superposition", shots=args.shots)
+
+    print(f"NEQR pixel PPB superposition (4x4, {ppb_res['qubits']}q Statevector): exact={ppb_res['exact_match']}, uniform={ppb_res['uniform']}, ancilla_clean={ppb_res['ancilla_clean_prob']:.6f}")
+    print(f"NEQR Grover tamper search ({gr_res['qubits']}q, {gr_res['iterations']} iters): flagged={gr_res['flagged_coords']}, prob_mass={gr_res['tampered_probability_mass']:.4f}, gain={gr_res['amplification_gain']:.2f}x")
+    print(f"Block-NEQR generation MPS ({blk_res['qubits']}q, {blk_res['n_blocks']} blocks): accuracy={blk_res['accuracy']:.4f}, all_blocks_seen={blk_res['all_blocks_seen']}")
+    print(f"Block-NEQR blind verify MPS ({bv_res['qubits']}q, {bv_res['n_blocks']} blocks): accuracy={bv_res['accuracy']:.4f}, matches_classical={bv_res['matches_classical']}")
     return 0
 
 
@@ -294,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("embed", help="watermark an image")
     s.add_argument("image", help="image name (lena, baboon, camera, ...) or path")
     s.add_argument("-o", "--output", default="watermarked.png")
-    s.add_argument("--mode", choices=("paper", "lsb", "keyed", "recovery"), default="paper", help="paper/lsb = base scheme; keyed/recovery = proposed blind schemes")
+    s.add_argument("--mode", choices=("paper", "lsb", "opap", "keyed", "keyed-opt", "recovery", "recovery-dual"), default="paper", help="paper/lsb/opap = base scheme; keyed*/recovery* = proposed blind schemes")
     s.add_argument("--key", help="secret key (keyed / recovery modes)")
     s.add_argument("--nonce", default="", help="per-image nonce, e.g. an image ID (keyed / recovery modes)")
     s.add_argument("--size", type=int, default=256)
@@ -342,7 +401,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--folds", type=int, default=5)
     s.add_argument("--images", help="comma separated cover image names")
     s.add_argument("--offline", action="store_true")
-    s.add_argument("--features", choices=("pixels", "descriptors"), default="pixels", help="feature representation (pixels = Table 17)")
+    s.add_argument("--features", choices=("pixels", "descriptors", "descriptors_v2"), default="pixels", help="feature representation (pixels = Table 17)")
     s.add_argument("--params", choices=("random", "table7"), default="random", help="attack strengths: randomised or fixed to Table 7")
     s.add_argument("--quick", action="store_true", help="small dataset and 64x64 features for a fast smoke run")
     s.add_argument("--out", type=Path, default=DEFAULT_OUT / "classifier")
@@ -365,12 +424,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", type=Path, default=DEFAULT_OUT / "tamper")
     s.set_defaults(func=cmd_tamper_study)
 
-    s = sub.add_parser("nisq", help="heavy-hex compilation and noisy Aer simulation of every block circuit (v2)")
+    s = sub.add_parser("nisq", help="heavy-hex compilation and noisy Aer simulation of every block circuit (v2/v3)")
     s.add_argument("--p2", help="comma separated two-qubit error rates")
     s.add_argument("--shots", type=int, default=2000)
     s.add_argument("--workers", type=int, default=None, help="parallel worker processes (default: cores - 1)")
+    s.add_argument("--shallow", action="store_true", help="include shallow Brent-Kung CLA circuits in the sweep")
+    s.add_argument("--thermal", action="store_true", help="also evaluate T1/T2 ALAP-scheduled idle decoherence")
     s.add_argument("--out", type=Path, default=DEFAULT_OUT / "nisq")
     s.set_defaults(func=cmd_nisq)
+
+    s = sub.add_parser("superposition", help="run true NEQR superposition PPB, Grover tamper search, and multi-block MPS verification (v3)")
+    s.add_argument("--image", default="camera")
+    s.add_argument("--key", default="superposition-demo-key")
+    s.add_argument("--shots", type=int, default=512)
+    s.set_defaults(func=cmd_superposition)
 
     s = sub.add_parser("classifier-benchmark", help="cover-disjoint testing, baselines + McNemar, open-set detection (v2)")
     s.add_argument("--samples-per-class", type=int, default=500)

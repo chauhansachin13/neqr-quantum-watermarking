@@ -19,6 +19,7 @@ from qwm.secure.authentication import (
 )
 from qwm.secure.keys import ToeplitzMAC, keyed_derangement, keystream, keystream_bits
 from qwm.secure.recovery import (
+    DualPartnerSelfRecoveringWatermark,
     RecoveryResult,
     SelfRecoveringWatermark,
     decode_recovery_codes,
@@ -27,6 +28,7 @@ from qwm.secure.recovery import (
 
 __all__ = [
     "AuthenticationResult",
+    "DualPartnerSelfRecoveringWatermark",
     "RecoveryResult",
     "SecureWatermark",
     "SelfRecoveringWatermark",

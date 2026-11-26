@@ -30,7 +30,25 @@ import numpy as np
 
 from qwm.watermark.generation import BITS_PER_BLOCK, generate_watermark
 
-MODES = ("paper", "lsb")
+MODES = ("paper", "lsb", "opap")
+
+
+def _opap_2bit(original: np.ndarray, embedded: np.ndarray) -> np.ndarray:
+    """Chan-Cheng Optimal Pixel Adjustment Process for 2-bit LSB embedding.
+
+    When ``embedded - original`` is ``+3`` (or ``-3``) and shifting the MSB
+    plane by ``-4`` (or ``+4``) stays within ``[0, 255]``, error drops from
+    ``±3`` (squared error 9) to ``∓1`` (squared error 1) while leaving the two
+    embedded LSBs untouched.
+    """
+    orig = np.asarray(original, dtype=np.int64)
+    out = np.asarray(embedded, dtype=np.int64).copy()
+    diff = out - orig
+    sub_mask = (diff == 3) & (out >= 4)
+    add_mask = (diff == -3) & (out <= 251)
+    out[sub_mask] -= 4
+    out[add_mask] += 4
+    return out
 
 
 def rpa_result_1bit(a: int, w: int) -> int:
@@ -70,8 +88,16 @@ def embed_pixel_trace(pixel: int, w0: int, w1: int) -> dict:
 def embed_pixel(pixel: int, w0: int, w1: int, mode: str = "paper") -> int:
     if mode == "paper":
         return embed_pixel_trace(pixel, w0, w1)["watermarked_pixel"]
-    if mode == "lsb":
-        return (int(pixel) & ~0b11) | ((int(w1) & 1) << 1) | (int(w0) & 1)
+    if mode in ("lsb", "opap"):
+        orig = int(pixel)
+        out = (orig & ~0b11) | ((int(w1) & 1) << 1) | (int(w0) & 1)
+        if mode == "opap":
+            diff = out - orig
+            if diff == 3 and out >= 4:
+                out -= 4
+            elif diff == -3 and out <= 251:
+                out += 4
+        return out
     raise ValueError(f"unknown mode {mode!r}; expected one of {MODES}")
 
 
@@ -115,10 +141,13 @@ def embed_image(image: np.ndarray, watermark: np.ndarray | None = None, mode: st
         region ^= 0b11
     else:
         wb = watermark
+        orig_region = region.copy() if mode == "opap" else None
         for i, (r, c) in enumerate(((0, 0), (0, 1), (1, 0), (1, 1))):
             sub = region[r::2, c::2]
             sub &= ~0b11
             sub |= wb[..., 2 * i] | (wb[..., 2 * i + 1] << 1)
+        if mode == "opap":
+            region[:] = _opap_2bit(orig_region, region)
     return out.astype(np.uint8), watermark.astype(np.uint8)
 
 

@@ -380,3 +380,25 @@ headline, a vertical navigation rail and numbered chapters.
   attacker combine blocks taken from the same positions.
 * Self-recovery restores a 2×2-mean approximation of the edited area
   (about 28–29 dB), not the exact original.
+
+---
+
+## 9. What v3 adds beyond v2
+
+v3 addresses the major structural, algorithmic, and quantum-simulation gaps left open after v2:
+
+1. **True NEQR Coordinate Superposition & Grover Tamper Oracle (`qwm.circuits.superposition`, `qwm superposition`)**:
+   Instead of evaluating blocks solely as classical computational basis inputs `|p0>|p1>|p2>|p3>`, `neqr_ppb_superposition_circuit` prepares the coherent state $|\psi\rangle = \frac{1}{\sqrt{HW}} \sum_{y,x} |f(y,x)\rangle |y,x\rangle$ and evaluates `PPB` across all coordinates simultaneously in a single `Statevector`-verified circuit (ancilla clean probability `1.000000`). Extending this, `run_grover_tamper_search` runs phase-kickback tamper detection + Grover diffusion to localize tampered pixels in a 4×4 patch within 3 iterations (`0.9613` probability mass, `15.38×` gain over uniform), while `run_block_neqr_superposition` (46 qubits) and `block_neqr_blind_verify` (47 qubits) process and blindly verify multi-block superpositions via `AerSimulator(method="matrix_product_state")` with `1.0000` shot accuracy matching classical `SecureWatermark`.
+
+2. **Logarithmic-Depth Brent-Kung CLA Circuits & ALAP T1/T2 Thermal Decoherence (`qwm.circuits.shallow`, `qwm.nisq`)**:
+   Replacing the linear Cuccaro ripple tree with a binary-reduction Brent-Kung CLA averaging tree (`cla_adder`, unitary-equivalent for `n=1..3` and superposition phase-exact for `n=4`) cuts compiled depth by **~38–45 %** (`485` vs `888` for generation on 69 vs 44 qubits; `382` vs `718` for keyed embedding; `530` vs `866` for blind verification). Evaluating both under Qiskit's `ALAPScheduleAnalysis` + `PadDelay` + `RelaxationNoisePass` (`T1 = 300 us, T2 = 200 us, p2 = 5e-4`) captures the real NISQ width-vs-depth tradeoff: although shallow CLA cuts wall duration (`16.8 us` vs `27.5 us`), its higher two-qubit gate count (`1434` vs `724` CX) and wider qubit footprint keep Lean's block success (`0.710`) ahead of Shallow (`0.640`).
+
+3. **Distortion-Optimal Keyed Embedding & OPAP (`SecureWatermark(..., optimize=True)`, `mode="opap"`)**:
+   - Base `mode="opap"` applies Chan-Cheng Optimal Pixel Adjustment Process (`±4` MSB adjustment when `|new - orig| == 3`), raising mean 256×256 PSNR across test covers from `44.08 dB` (`lsb`) to `46.39 dB` (`SSIM 0.99342`, MSE `1.493`).
+   - `mode="keyed-opt"` searches all `3^4 = 81` MSB coset shifts `{-4, 0, +4}^4` per 2×2 block jointly with their induced Toeplitz tag so the receiver's `SecureWatermark.verify()` and `BlindVerificationCircuit` remain **100 % unmodified**, reaching **`46.37 dB` mean PSNR** (`SSIM 0.99329`, MSE `1.499`).
+
+4. **Dual-Partner 8×8 Companded-Haar Self-Recovery (`DualPartnerSelfRecoveringWatermark`, `mode="recovery-dual"`)**:
+   Within the same 2.0 bpp budget (128 LSB slots per 8×8 block), v3 packs a 68-bit primary companded-Haar code (for partner `pi_1(B)`), a 44-bit secondary Haar code (for disjoint partner `pi_2(B)`), and a 16-bit Toeplitz MAC (`2^-16` forgery bound). Across 20 % and 40 % tampering scenarios on test covers, code-based restoration rises from `96.1 % / 86.4 %` (4×4) to **`99.9 % / 97.7 %`**, recovering `29.01 dB` at 20 % and `27.76 dB` at 40 %.
+
+5. **162-d Forensic Descriptors & Calibrated Open-Set Gate (`descriptors_v2`, `CalibratedOpenSetDetector`)**:
+   Adding 25 multi-domain descriptors (8×8 2D-DCT spectral energy ratios, H/V and diagonal gradient anisotropy, multiplicative dark-vs-bright noise floor, unsharp overshoot, histogram zero-gaps, quantiles, and bit-plane lag-2 correlations) boosts unseen-attack open-set AUROC (Random Forest across all default covers) from `0.884` to **`0.930`**, increasing open-set rejection at 95 % in-distribution acceptance from **`34.4 %` to `56.6 %`**, while raising cover-disjoint RF accuracy from `97.64 %` to **`99.21 %`**.

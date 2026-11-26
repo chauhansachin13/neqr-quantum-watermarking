@@ -5,12 +5,12 @@ Two feature representations are available:
 * ``"pixels"`` (Sec. 4.8.2 / Table 17 of the reference design): the attacked
   watermarked image is kept as a fixed-size grayscale matrix, its intensities
   are normalised to ``[0, 1]`` and flattened (``256 x 256 -> 65,536`` features).
-* ``"descriptors"``: a compact vector (~140 values) of distortion-sensitive
-  statistics - intensity histogram and entropy, saturated-pixel and border
-  statistics, median-residual and gradient statistics, high-frequency energy,
-  8x8 blockiness, bit-plane statistics and a coarse thumbnail.  These
-  describe *how* an image was distorted rather than *what* it shows, which
-  makes the classifier robust to unseen cover images and attack strengths.
+* ``"descriptors"``: a compact 137-d vector of distortion-sensitive statistics.
+* ``"descriptors_v2"`` (v3): extends ``"descriptors"`` to 162 features with
+  8x8 2D-DCT spectral sub-band ratios, directional gradient & diagonal
+  anisotropy, dark-vs-bright multiplicative noise ratio (separating speckle from
+  AWGN), unsharp high-pass overshoot, histogram comb-gap ratios, quantiles, and
+  plane-1 / lag-2 bit correlations for unseen-attack and unseen-cover robustness.
 """
 
 from __future__ import annotations
@@ -18,8 +18,9 @@ from __future__ import annotations
 import cv2
 import numpy as np
 from scipy import stats
+from scipy.fft import dctn
 
-FEATURE_KINDS = ("pixels", "descriptors")
+FEATURE_KINDS = ("pixels", "descriptors", "descriptors_v2")
 
 
 def image_to_feature(image: np.ndarray, size: int = 256) -> np.ndarray:
@@ -133,11 +134,133 @@ def descriptor_names() -> list[str]:
     return names
 
 
+def image_descriptors_v2(image: np.ndarray, size: int = 256) -> np.ndarray:
+    """Extended 162-d multi-domain forensic descriptor vector (``"descriptors_v2"``)."""
+    img = np.asarray(image)
+    if img.ndim != 2:
+        raise ValueError("expected a 2-D grayscale image")
+    if img.shape != (size, size):
+        img = cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)
+    img = img.astype(np.uint8)
+    base = image_descriptors(img, size).tolist()
+    x = img.astype(np.float64)
+
+    # Histogram comb-gap signature (gamma / brightness / contrast stretching leaves empty bins)
+    hist = np.bincount(img.ravel(), minlength=256)
+    zero_gaps = float((hist[10:246] == 0).mean())
+    spike_ratio = float(hist.max() / (hist.mean() + 1e-6))
+    pcts = list(np.percentile(x, [1, 5, 10, 90, 95, 99]) / 255.0)
+    iqr_spread = float(pcts[4] - pcts[1])
+    near_bounds = [
+        float(((img > 0) & (img <= 5)).mean()),
+        float(((img >= 250) & (img < 255)).mean()),
+    ]
+
+    # Directional gradient & diagonal anisotropy (motion blur vs isotropic filtering)
+    gx = cv2.Sobel(x, cv2.CV_64F, 1, 0, ksize=3)
+    gy = cv2.Sobel(x, cv2.CV_64F, 0, 1, ksize=3)
+    gxy = np.abs(x[1:, 1:] - x[:-1, :-1])
+    gyx = np.abs(x[1:, :-1] - x[:-1, 1:])
+    aniso_hv = float(np.log1p(np.abs(gx).mean()) - np.log1p(np.abs(gy).mean()))
+    aniso_diag = float(np.log1p(gxy.mean()) - np.log1p(gyx.mean()))
+
+    # Noise-floor MAD and dark-vs-bright multiplicative noise ratio (speckle vs AWGN)
+    lap = cv2.Laplacian(x, cv2.CV_64F)
+    lap_mad = float(0.6745 * np.median(np.abs(lap - np.median(lap))))
+    al = np.abs(lap)
+    dark_mask = x < np.percentile(x, 33)
+    bright_mask = x > np.percentile(x, 67)
+    noise_dark = float(np.median(al[dark_mask])) if dark_mask.any() else 0.0
+    noise_bright = float(np.median(al[bright_mask])) if bright_mask.any() else 0.0
+    mult_noise_ratio = float((noise_bright + 1e-3) / (noise_dark + 1e-3))
+
+    # High-pass unsharp / sharpening overshoot signature
+    gblur = cv2.GaussianBlur(x, (3, 3), 0.8)
+    hp = x - gblur
+    hp_std = float(hp.std())
+    hp_kurt = float(stats.kurtosis(hp.ravel()))
+    hp_overshoot = float(np.mean(np.abs(hp) > 12.0))
+
+    # 8x8 2D-DCT spectral sub-band energy ratios
+    cropped = x[: (size // 8) * 8, : (size // 8) * 8]
+    bh, bw = cropped.shape[0] // 8, cropped.shape[1] // 8
+    dct_blocks = cropped.reshape(bh, 8, bw, 8).swapaxes(1, 2).reshape(-1, 8, 8)
+    dct_mag = np.abs(dctn(dct_blocks, axes=(1, 2), norm="ortho"))
+    total_ac = float(dct_mag.sum() - dct_mag[:, 0, 0].sum() + 1e-9)
+    low_ac = float(dct_mag[:, :3, :3].sum() - dct_mag[:, 0, 0].sum()) / total_ac
+    mid_ac = float(dct_mag[:, :6, :6].sum() - dct_mag[:, :3, :3].sum()) / total_ac
+    high_ac = float(dct_mag.sum() - dct_mag[:, :6, :6].sum()) / total_ac
+    hf_zero = float((dct_mag[:, 4:, 4:] < 0.5).mean())
+
+    # LSB plane-0 lag-2 and plane-1 spatial correlations (fragile under filtering/rescaling)
+    b0 = img & 1
+    b1 = (img >> 1) & 1
+    b0_h2 = float(np.mean(b0[:, :-2] == b0[:, 2:]))
+    b1_h1 = float(np.mean(b1[:, :-1] == b1[:, 1:]))
+    b1_v1 = float(np.mean(b1[:-1, :] == b1[1:, :]))
+
+    extra = [
+        zero_gaps,
+        spike_ratio,
+        *pcts,
+        iqr_spread,
+        *near_bounds,
+        aniso_hv,
+        aniso_diag,
+        lap_mad,
+        mult_noise_ratio,
+        hp_std,
+        hp_kurt,
+        hp_overshoot,
+        low_ac,
+        mid_ac,
+        high_ac,
+        hf_zero,
+        b0_h2,
+        b1_h1,
+        b1_v1,
+    ]
+    return np.asarray(base + extra, dtype=np.float32)
+
+
+def descriptor_v2_names() -> list[str]:
+    """Names of the 162 entries of :func:`image_descriptors_v2`, in order."""
+    return descriptor_names() + [
+        "hist_zero_gaps",
+        "hist_spike_ratio",
+        "pct_01",
+        "pct_05",
+        "pct_10",
+        "pct_90",
+        "pct_95",
+        "pct_99",
+        "iqr_95_05",
+        "near_black_1_5",
+        "near_white_250_254",
+        "grad_aniso_hv",
+        "grad_aniso_diag",
+        "laplacian_mad",
+        "mult_noise_ratio",
+        "hp_std",
+        "hp_kurtosis",
+        "hp_overshoot_12",
+        "dct_low_ac",
+        "dct_mid_ac",
+        "dct_high_ac",
+        "dct_hf_zero",
+        "bitplane0_hcorr2",
+        "bitplane1_hcorr",
+        "bitplane1_vcorr",
+    ]
+
+
 def extract_features(image: np.ndarray, kind: str = "pixels", size: int = 256) -> np.ndarray:
     if kind == "pixels":
         return image_to_feature(image, size)
     if kind == "descriptors":
         return image_descriptors(image, size)
+    if kind == "descriptors_v2":
+        return image_descriptors_v2(image, size)
     raise ValueError(f"unknown feature kind {kind!r}; expected one of {FEATURE_KINDS}")
 
 

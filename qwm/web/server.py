@@ -50,8 +50,11 @@ SIZE = 256
 MODES = {
     "paper": "Base scheme, literal rule (RPA -> XOR -> QE -> Pauli-X)",
     "lsb": "Base scheme, LSB replacement (needs the reference bits)",
+    "opap": "v3 base upgrade: Optimal Pixel Adjustment Process (OPAP, ~46.4 dB)",
     "keyed": "Proposed: keyed blind authentication (2x2 blocks)",
+    "keyed-opt": "v3 blind authentication (81-coset MSE optimal, ~46.4 dB)",
     "recovery": "Proposed: keyed self-recovery (4x4 blocks)",
+    "recovery-dual": "v3 dual-partner Haar self-recovery (8x8 blocks, 2^-16 MAC)",
 }
 LOCAL_EDITS = ("text_overlay", "blackout", "copy_move", "splice", "lsb_preserving_splice", "local_blur")
 
@@ -98,6 +101,8 @@ class DemoApp:
         self.sessions: OrderedDict[str, dict] = OrderedDict()
         self.lock = threading.Lock()
         self.classifier = None
+        self.classifier_features = "descriptors_v2"
+        self.ood_threshold = 0.50
         self.classifier_info = "training a quick Random Forest in the background ..."
         if prepare_classifier:
             threading.Thread(target=self._prepare_classifier, daemon=True).start()
@@ -112,17 +117,30 @@ class DemoApp:
             saved = RESULTS / "classifier" / "descriptors_random" / "random_forest.joblib"
             if saved.exists():
                 self.classifier = joblib.load(saved)
+                self.classifier_features = "descriptors"
+                self.ood_threshold = 0.48
                 self.classifier_info = "Random Forest (Table 18) on 137-d descriptors, trained on 4,500 attacked images"
                 return
+            from sklearn.model_selection import train_test_split
+
+            from qwm.classifier.benchmark import CalibratedOpenSetDetector
             from qwm.classifier.dataset import build_dataset
             from qwm.classifier.train import make_classifier
             from qwm.data import default_image_set, load_image
 
             t0 = time.perf_counter()
             covers = [load_image(n, SIZE) for n in default_image_set(offline=True)]
-            ds = build_dataset(covers, samples_per_class=60, size=SIZE, features="descriptors", seed=1)
+            ds = build_dataset(covers, samples_per_class=60, size=SIZE, features="descriptors_v2", seed=1)
+            tr, va = train_test_split(np.arange(len(ds.y)), test_size=0.2, stratify=ds.y, random_state=1)
+            cal_clf = make_classifier().fit(ds.X[tr], ds.y[tr])
+            det = CalibratedOpenSetDetector(cal_clf, keep=0.95).calibrate(ds.X[va])
             self.classifier = make_classifier().fit(ds.X, ds.y)
-            self.classifier_info = f"Random Forest on descriptors, quick model ({len(ds.y)} samples, {time.perf_counter() - t0:.0f} s); run `qwm classify --features descriptors` for the full one"
+            self.classifier_features = "descriptors_v2"
+            self.ood_threshold = det.threshold
+            self.classifier_info = (
+                f"Random Forest on 162-d v3 forensic descriptors ({len(ds.y)} samples, "
+                f"{time.perf_counter() - t0:.1f} s, OOD threshold {det.threshold:.2f})"
+            )
         except Exception as exc:  # pragma: no cover - reported in the UI
             self.classifier_info = f"classifier unavailable: {exc}"
 
@@ -144,9 +162,19 @@ class DemoApp:
 
     @staticmethod
     def _scheme(mode: str, key: str, nonce: str):
-        from qwm.secure import SecureWatermark, SelfRecoveringWatermark
+        from qwm.secure import (
+            DualPartnerSelfRecoveringWatermark,
+            SecureWatermark,
+            SelfRecoveringWatermark,
+        )
 
-        return SecureWatermark(key, nonce) if mode == "keyed" else SelfRecoveringWatermark(key, nonce)
+        if mode == "keyed":
+            return SecureWatermark(key, nonce)
+        if mode == "keyed-opt":
+            return SecureWatermark(key, nonce, optimize=True)
+        if mode == "recovery":
+            return SelfRecoveringWatermark(key, nonce)
+        return DualPartnerSelfRecoveringWatermark(key, nonce)
 
     # -- endpoints ----------------------------------------------------------
     def meta(self) -> dict:
@@ -182,7 +210,7 @@ class DemoApp:
         key, nonce = str(req.get("key") or "demo-key"), str(req.get("nonce") or source)
         t0 = time.perf_counter()
         ref = None
-        if mode in ("paper", "lsb"):
+        if mode in ("paper", "lsb", "opap"):
             watermarked, ref = embed_image(cover, mode=mode)
             side_bits = int(ref.size)
         else:
@@ -263,25 +291,33 @@ class DemoApp:
                 }
             )
             block = 2
-        elif mode == "lsb":
+        elif mode in ("lsb", "opap"):
             raw, _ = extract_image(img)
             tamper = tamper_map(raw, s["ref"])
             block = 2
-            out.update({"ber": bit_error_rate(raw, s["ref"]), "note": f"Non-blind: needs the {s['ref'].size:,} reference bits stored at embedding time; content edits that keep the two LSBs are invisible to it."})
-        elif mode == "keyed":
+            mode_note = "OPAP adjusts +/-4 MSBs to cut MSE from ~2.5 to ~1.5 (PSNR ~46.4 dB). " if mode == "opap" else ""
+            out.update({"ber": bit_error_rate(raw, s["ref"]), "note": f"{mode_note}Non-blind: needs the {s['ref'].size:,} reference bits stored at embedding time; content edits that keep the two LSBs are invisible to it."})
+        elif mode in ("keyed", "keyed-opt"):
             res = self._scheme(mode, s["key"], s["nonce"]).verify(img)
             tamper, block = res.tamper_map, 2
-            out["note"] = "Blind: only the key and nonce are needed. A changed block passes with probability 2^-8."
+            opt_note = " Optimal 81-coset embedding raises PSNR to ~46.4 dB with zero receiver changes." if mode == "keyed-opt" else ""
+            out["note"] = f"Blind: only the key and nonce are needed. A changed block passes with probability 2^-8.{opt_note}"
         else:
             res = self._scheme(mode, s["key"], s["nonce"]).recover(img)
-            tamper, block = res.tamper_map, 4
+            block = 8 if mode == "recovery-dual" else 4
+            tamper = res.tamper_map
+            detail = (
+                f"Primary Haar: {res.extra.get('primary_restored', 0)}, Secondary fallback: {res.extra.get('secondary_restored', 0)}. Forgery probability 2^-16."
+                if mode == "recovery-dual"
+                else "A changed block passes with probability 2^-12."
+            )
             out.update(
                 {
                     "recovered": to_data_url(res.recovered),
                     "psnr_recovered": psnr(s["cover"], res.recovered),
                     "psnr_attacked": psnr(s["cover"], img),
                     "restored_fraction": res.restored_fraction,
-                    "note": "Blind: failed 4x4 blocks are rebuilt from the recovery code stored in their keyed partner block (inpainting if the partner failed too). A changed block passes with probability 2^-12.",
+                    "note": f"Blind: failed {block}x{block} blocks are rebuilt from partner recovery codes (inpainting if partners failed too). {detail}",
                 }
             )
         n_bad = int(tamper.sum())
@@ -299,16 +335,26 @@ class DemoApp:
 
     def classify(self, req: dict) -> dict:
         from qwm.classifier.dataset import CLASS_NAMES, PRETTY_NAMES
-        from qwm.classifier.features import image_descriptors
+        from qwm.classifier.features import extract_features
 
         s = self._session(req["session"])
         if self.classifier is None:
             return {"ready": False, "info": self.classifier_info}
-        x = image_descriptors(s["attacked"], SIZE)[None, :]
+        x = extract_features(s["attacked"], self.classifier_features, SIZE)[None, :]
         proba = self.classifier.predict_proba(x)[0]
         classes = [CLASS_NAMES[int(c)] for c in self.classifier.classes_]
         rows = sorted(({"name": PRETTY_NAMES[c], "p": float(p)} for c, p in zip(classes, proba, strict=True)), key=lambda r: -r["p"])
-        return {"ready": True, "info": self.classifier_info, "probabilities": rows, "predicted": rows[0]["name"], "actual": s["last_attack"]}
+        top_p = float(rows[0]["p"])
+        return {
+            "ready": True,
+            "info": self.classifier_info,
+            "probabilities": rows,
+            "predicted": rows[0]["name"],
+            "actual": s["last_attack"],
+            "confidence": top_p,
+            "threshold": float(self.ood_threshold),
+            "is_unknown": bool(top_p < self.ood_threshold),
+        }
 
     def block(self, req: dict) -> dict:
         import io
@@ -316,13 +362,17 @@ class DemoApp:
         import matplotlib.pyplot as plt
 
         from qwm.circuits import (
+            ShallowBlindVerificationCircuit,
+            ShallowGenerationCircuit,
             WatermarkEmbeddingCircuit,
             WatermarkExtractionCircuit,
             WatermarkGenerationCircuit,
+            run_neqr_ppb_superposition,
         )
         from qwm.circuits.lean import LeanGenerationCircuit
         from qwm.circuits.secure import BlindVerificationCircuit
         from qwm.neqr import neqr_block_circuit
+        from qwm.nisq import BlockTask, compile_logical, gate_counts
         from qwm.watermark import block_trace
 
         s = self._session(req["session"])
@@ -348,17 +398,27 @@ class DemoApp:
         x = timed("base extraction", ext.run)
         lean = LeanGenerationCircuit(blk)
         lg = timed("lean generation", lean.run)
+        shallow = ShallowGenerationCircuit(blk)
+        sg = timed("shallow CLA generation", shallow.run)
+        sup = timed("NEQR superposition PPB", lambda: run_neqr_ppb_superposition(blk.astype(np.uint8)))
+        gc_lean = gate_counts(compile_logical(BlockTask("ln", "lean", "generation", lean.circuit, [lean.circuit.find_bit(q).index for q in lean.layout.out], trace["watermark"])))
+        gc_sh = gate_counts(compile_logical(BlockTask("sh", "shallow", "generation", shallow.circuit, [shallow.circuit.find_bit(q).index for q in shallow.layout.out], trace["watermark"])))
         circuits = [
             {"name": "Base generation (RPA + D4 + CNOT)", "qubits": gen.circuit.num_qubits, "result": f"PPB {g['ppb']}  AA {g['aa']}  Wb {''.join(map(str, g['watermark']))}"},
             {"name": "Base embedding (RPA + QE + Pauli-X)", "qubits": emb.circuit.num_qubits, "result": f"|W> = {e['watermarked_pixels']}"},
             {"name": "Base extraction (RPS + QE + Pauli-X)", "qubits": ext.circuit.num_qubits, "result": f"raw {''.join(map(str, x['raw_bits']))} -> Wb {''.join(map(str, x['extracted_bits']))}"},
-            {"name": "Lean generation (Cuccaro + uncompute)", "qubits": lean.circuit.num_qubits, "result": f"Wb {''.join(map(str, lg['watermark']))}, garbage-free: {lg['pixels_restored'] and lg['ancillas_clean']}"},
+            {"name": "Lean generation (Cuccaro + uncompute)", "qubits": lean.circuit.num_qubits, "result": f"Wb {''.join(map(str, lg['watermark']))}, depth {gc_lean['depth']}, 2Q={gc_lean['two_qubit_gates']}, clean={lg['pixels_restored'] and lg['ancillas_clean']}"},
+            {"name": "v3 Shallow generation (Brent-Kung CLA)", "qubits": shallow.circuit.num_qubits, "result": f"Wb {''.join(map(str, sg['watermark']))}, depth {gc_sh['depth']} (vs {gc_lean['depth']}), clean={sg['ancillas_clean']}"},
+            {"name": "v3 NEQR pixel superposition PPB (Statevector)", "qubits": sup["qubits"], "result": f"all 4 coords uniform={sup['uniform']}, exact_ppb={sup['exact_match']}, anc_clean={sup['ancilla_clean_prob']:.6f}"},
         ]
-        if s["mode"] == "keyed":
+        if s["mode"] in ("keyed", "keyed-opt"):
             cur = s["attacked"][2 * r : 2 * r + 2, 2 * c : 2 * c + 2]
             bv = BlindVerificationCircuit(cur, s["key"], s["nonce"], s["cover"].shape, r, c)
             v = timed("keyed blind verification", bv.run)
+            sbv = ShallowBlindVerificationCircuit(cur, s["key"], s["nonce"], s["cover"].shape, r, c)
+            sv = timed("shallow blind verification", sbv.run)
             circuits.append({"name": "Keyed blind verification (current image)", "qubits": bv.circuit.num_qubits, "result": "authentic" if v["authentic"] else "TAMPERED"})
+            circuits.append({"name": "v3 Shallow blind verification (CLA)", "qubits": sbv.circuit.num_qubits, "result": f"{'authentic' if sv['authentic'] else 'TAMPERED'}, anc_clean={sv['ancillas_clean']}"})
         buf = io.BytesIO()
         with _MPL_LOCK:
             fig = neqr_block_circuit(blk).draw("mpl", fold=-1, scale=0.55)
@@ -383,6 +443,48 @@ class DemoApp:
             return {"rows": [], "note": "run `qwm nisq` to generate the table"}
         with path.open() as fh:
             return {"rows": list(csv.DictReader(fh))}
+
+    def nisq_block(self, req: dict) -> dict:
+        from qwm.circuits import ShallowGenerationCircuit
+        from qwm.circuits.lean import LeanGenerationCircuit
+        from qwm.nisq import BlockTask, compile_logical, gate_counts, thermal_success_probability
+        from qwm.watermark import block_watermark_bits
+
+        s = self._session(req["session"])
+        r, c = int(req.get("row", 0)), int(req.get("col", 0))
+        hb, wb = s["cover"].shape[0] // 2, s["cover"].shape[1] // 2
+        if not (0 <= r < hb and 0 <= c < wb):
+            raise ValueError("block outside the image")
+        blk = s["cover"][2 * r : 2 * r + 2, 2 * c : 2 * c + 2].astype(int)
+        expected = block_watermark_bits(blk)
+        p2 = float(req.get("p2", 5e-4))
+        t1 = float(req.get("t1_us", 300.0)) * 1e-6
+        t2 = 0.65 * t1
+        shots = int(min(max(int(req.get("shots", 250)), 50), 1000))
+
+        lg = LeanGenerationCircuit(blk)
+        sg = ShallowGenerationCircuit(blk)
+        tasks = [
+            ("Lean generation (44q Cuccaro)", BlockTask("lean", "lean", "generation", lg.circuit, [lg.circuit.find_bit(q).index for q in lg.layout.out], expected)),
+            ("Shallow CLA generation (69q BK)", BlockTask("shallow", "shallow", "generation", sg.circuit, [sg.circuit.find_bit(q).index for q in sg.layout.out], expected)),
+        ]
+        rows = []
+        for label, t in tasks:
+            compiled = compile_logical(t)
+            gc = gate_counts(compiled)
+            res = thermal_success_probability(compiled, t.expected_key, t1=t1, t2=t2, p2=p2, shots=shots, seed=7)
+            rows.append(
+                {
+                    "name": label,
+                    "qubits": t.circuit.num_qubits,
+                    "two_qubit_gates": gc["two_qubit_gates"],
+                    "depth": gc["depth"],
+                    "duration_us": res["duration_us"],
+                    "success": res["success"],
+                    "bit_error_rate": res["bit_error_rate"],
+                }
+            )
+        return {"row": r, "col": c, "p2": p2, "t1_us": t1 * 1e6, "t2_us": t2 * 1e6, "shots": shots, "rows": rows}
 
 
 # --------------------------------------------------------------------------- #
@@ -424,7 +526,14 @@ def make_handler(app: DemoApp):
             return self._send(200, target.read_bytes(), CONTENT_TYPES.get(target.suffix, "application/octet-stream"))
 
         def do_POST(self):  # noqa: N802
-            routes = {"/api/embed": app.embed, "/api/attack": app.attack, "/api/verify": app.verify, "/api/classify": app.classify, "/api/block": app.block}
+            routes = {
+                "/api/embed": app.embed,
+                "/api/attack": app.attack,
+                "/api/verify": app.verify,
+                "/api/classify": app.classify,
+                "/api/block": app.block,
+                "/api/nisq_block": app.nisq_block,
+            }
             fn = routes.get(self.path)
             if fn is None:
                 return self._json(404, {"error": "not found"})

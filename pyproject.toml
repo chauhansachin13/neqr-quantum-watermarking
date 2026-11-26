@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neqr-quantum-watermarking"
-version = "2.0.0"
+version = "3.0.0"
 description = "Simulation-based quantum image watermarking with NEQR and reversible quantum logic (RPA, RPS, D4, QE), plus an AI-assisted attack classifier."
 readme = "README.md"
 requires-python = ">=3.10"

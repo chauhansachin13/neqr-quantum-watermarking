@@ -202,7 +202,11 @@ DEFAULT_P2 = (1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2)
 
 def _nisq_job(args) -> dict:
     """One (circuit, topology) noise sweep; runs in a worker process."""
-    task_index, topology, p_values, shots, seed, stop_below = args
+    if len(args) == 6:
+        task_index, topology, p_values, shots, seed, stop_below = args
+        include_shallow = False
+    else:
+        task_index, topology, p_values, shots, seed, stop_below, include_shallow = args
     from qwm.nisq import (
         block_tasks,
         compile_heavy_hex,
@@ -212,7 +216,7 @@ def _nisq_job(args) -> dict:
         success_probability,
     )
 
-    t = block_tasks()[task_index]
+    t = block_tasks(include_shallow=include_shallow)[task_index]
     t0 = time.perf_counter()
     qc = compile_logical(t) if topology == "all-to-all" else compile_heavy_hex(t)
     counts = gate_counts(qc)
@@ -253,6 +257,7 @@ def nisq_study(
     verbose: bool = False,
     workers: int | None = None,
     stop_below: float = 0.002,
+    include_shallow: bool = False,
 ) -> dict:
     """Compile every block circuit, then sweep the two-qubit error rate with Aer.
 
@@ -270,8 +275,8 @@ def nisq_study(
 
     from qwm.nisq import block_tasks, heavy_hex_distance, threshold
 
-    tasks = block_tasks()
-    jobs = [(i, topo, tuple(p_values), shots, seed, stop_below) for i in range(len(tasks)) for topo in ("heavy-hex", "all-to-all")]
+    tasks = block_tasks(include_shallow=include_shallow)
+    jobs = [(i, topo, tuple(p_values), shots, seed, stop_below, include_shallow) for i in range(len(tasks)) for topo in ("heavy-hex", "all-to-all")]
     jobs.sort(key=lambda j: -tasks[j[0]].circuit.num_qubits)  # widest first for load balancing
     workers = workers or max(1, min(len(jobs), (os.cpu_count() or 2) - 1))
     out_path = Path(out_dir) if out_dir is not None else None
@@ -339,6 +344,9 @@ def _plot_nisq(sweep: pd.DataFrame, path: Path) -> None:
         "lean generation": ("#1f77b4", "-", "s"),
         "keyed embedding": ("#2ca02c", "-", "^"),
         "keyed blind verification": ("#d62728", "-", "D"),
+        "shallow generation": ("#9467bd", "-", "*"),
+        "shallow keyed embedding": ("#e377c2", "-", "P"),
+        "shallow blind verification": ("#17becf", "-", "X"),
         "base-v1 extraction": ("#8c564b", "--", "o"),
         "lean extraction": ("#1f77b4", "--", "s"),
     }
@@ -469,3 +477,46 @@ def paper_check_study(out_dir: Path | None = None) -> dict:
         pd.DataFrame(table9).to_csv(out_dir / "table9_check.csv", index=False)
         pd.DataFrame(bounds).to_csv(out_dir / "psnr_bounds.csv", index=False)
     return out
+
+
+def thermal_nisq_study(
+    t1_values=(300e-6, 1000e-6),
+    p2: float = 5e-4,
+    shots: int = 500,
+    seed: int = 7,
+    out_dir: Path | None = None,
+) -> pd.DataFrame:
+    """Compare lean vs shallow CLA circuits under ALAP-scheduled T1/T2 + idle decoherence."""
+    from qwm.nisq import block_tasks, compile_logical, gate_counts, thermal_success_probability
+
+    tasks = [t for t in block_tasks(include_shallow=True) if t.family in ("lean", "keyed", "shallow")]
+    rows = []
+    for t in tasks:
+        compiled = compile_logical(t)
+        gc = gate_counts(compiled)
+        for t1 in t1_values:
+            t2 = 0.65 * t1
+            res = thermal_success_probability(compiled, t.expected_key, t1=t1, t2=t2, p2=p2, shots=shots, seed=seed)
+            rows.append(
+                {
+                    "circuit": t.name,
+                    "family": t.family,
+                    "stage": t.stage,
+                    "qubits": t.circuit.num_qubits,
+                    "two_qubit_gates": gc["two_qubit_gates"],
+                    "depth": gc["depth"],
+                    "t1_us": res["t1_us"],
+                    "t2_us": res["t2_us"],
+                    "p2": p2,
+                    "duration_us": res["duration_us"],
+                    "total_idle_us": res["total_idle_us"],
+                    "success": res["success"],
+                    "bit_error_rate": res["bit_error_rate"],
+                }
+            )
+    df = pd.DataFrame(rows)
+    if out_dir is not None:
+        out_dir = Path(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out_dir / "nisq_thermal.csv", index=False)
+    return df

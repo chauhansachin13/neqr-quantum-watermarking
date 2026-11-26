@@ -1,5 +1,60 @@
 # Changelog
 
+## 3.0.0
+
+Addresses the remaining classical-simulation and NISQ depth limitations beyond
+v2 while remaining 100% backward-compatible with v1 and v2 APIs.
+
+### Added
+- **True NEQR superposition & Grover tamper search**
+  (`qwm.circuits.superposition`, `qwm superposition`):
+  - `neqr_ppb_superposition_circuit` / `run_neqr_ppb_superposition`: coherent
+    coordinate superposition over all pixels of a `2^h x 2^w` image verified
+    with exact `Statevector` simulation (13–17 qubits, clean ancilla probability
+    1.000000).
+  - `neqr_tamper_oracle_circuit` / `run_grover_tamper_search`: blind PPB and
+    reference tamper phase oracle + Grover amplitude amplification on NEQR
+    coordinate registers (locates a single tampered pixel in a 4×4 patch in
+    3 iterations with `0.9613` probability mass / `15.38×` gain).
+  - `block_neqr_superposition_circuit`, `run_block_neqr_superposition`, and
+    `block_neqr_blind_verify`: uniform multi-block NEQR superposition (`46–47`
+    qubits) verified across all blocks simultaneously via Aer MPS (`1.0000`
+    shot accuracy matching classical verification).
+- **Log-depth Carry-Lookahead (Brent-Kung CLA) circuits** (`qwm.circuits.shallow`):
+  - `cla_adder` / `append_cla` (`O(log n)` carry tree, proved unitary-equivalent
+    with `Operator` for `n=1..3`, superposition phase exact for `n=4`, and
+    exhaustively verified with carry-in and relative-phase Toffolis).
+  - `ShallowGenerationCircuit` (69 qubits unmasked / depth `485` vs `888` Lean),
+    `ShallowKeyedEmbeddingCircuit` (59 qubits / depth `382` vs `718`), and
+    `ShallowBlindVerificationCircuit` (60 qubits / depth `530` vs `866`).
+- **T1/T2 ALAP-scheduled idle thermal decoherence study** (`qwm.nisq`,
+  `qwm nisq --shallow --thermal`, `qwm.studies.thermal_nisq_study`): compiles to
+  native durations and pads idle delays with `ALAPScheduleAnalysis` +
+  `PadDelay` + `RelaxationNoisePass` to quantify the wall-duration vs
+  gate-count / width tradeoff.
+- **OPAP & distortion-optimal keyed blind embedding**:
+  - Base `mode="opap"` (`qwm.watermark.embed_image(..., mode="opap")`): Chan-Cheng
+    OPAP raises mean PSNR over standard test covers from `44.08 dB` (`lsb`) to
+    `46.39 dB` (`SSIM 0.99342`) with zero extraction loss.
+  - `SecureWatermark(..., optimize=True)` / `mode="keyed-opt"`: searches 81
+    MSB coset shifts `{-4, 0, +4}^4` per 2×2 block to achieve `46.37 dB` mean
+    PSNR (`SSIM 0.99329`, MSE `1.499`) with zero receiver changes.
+- **Dual-partner 8×8 self-recovery** (`qwm.secure.DualPartnerSelfRecoveringWatermark`,
+  `mode="recovery-dual"`, plus `"bicubic"` reconstruction on
+  `SelfRecoveringWatermark`): 128 LSB slots (2 bpp) partitioned into 68-bit
+  primary companded-Haar quadrant codes, 44-bit disjoint secondary codes, and
+  16-bit Toeplitz MAC (`2^-16` forgery probability), maintaining `99.9 %`
+  code-restoration at 20 % tampering and `97.7 %` at 40 % tampering.
+- **162-d multi-domain forensic descriptors + open-set gate** (`descriptors_v2`,
+  `CalibratedOpenSetDetector`): extends the 137-d descriptors with 2D-DCT sub-band
+  energy ratios, gradient anisotropy, multiplicative dark/bright noise floor,
+  unsharp overshoot, histogram zero-gaps, and bit-plane lag-2 correlations;
+  unseen-attack open-set AUROC improves from `0.884` to `0.930` (rejection at
+  95 % TPR improves from `34.4 %` to `56.6 %`).
+- **Upgraded interactive web demo & CLI**: `qwm serve` now supports all 7 schemes,
+  PNG downloads, OOD confidence flagging, shallow CLA + NEQR superposition
+  readouts, and live `POST /api/nisq_block` T1/T2 noise simulation.
+
 ## 2.0.0
 
 Extends the reproduction with the reference design's own future-work items.
