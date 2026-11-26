@@ -568,11 +568,18 @@ def make_handler(app: DemoApp):
             fn = routes.get(self.path)
             if fn is None:
                 return self._json(404, {"error": "not found"})
-            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return self._json(400, {"error": "invalid Content-Length"})
+            if length < 0:
+                return self._json(400, {"error": "invalid Content-Length"})
             if length > MAX_BODY:
                 return self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "request too large"})
             try:
                 req = json.loads(self.rfile.read(length) or b"{}")
+                if not isinstance(req, dict):
+                    raise ValueError("expected a JSON object")
                 return self._json(200, fn(req))
             except (KeyError, ValueError) as exc:
                 return self._json(400, {"error": str(exc).strip("'")})

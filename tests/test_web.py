@@ -95,3 +95,5 @@ def test_errors_are_json(server):
     assert status == 400 and "session" in body["error"]
     status, body = _post(base + "/api/embed", {"image": "camera", "mode": "bogus"})
     assert status == 400
+    status, body = _post(base + "/api/embed", [])
+    assert status == 400 and "JSON object" in body["error"]
