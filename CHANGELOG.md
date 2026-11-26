@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.1
+
+Paper-fidelity, workflow simplicity, and Bento UI polish:
+- **Unitary inverse & paper completeness**: `WatermarkEmbeddingCircuit.verify_unitary_inverse()` verifies `U† |W> = |C> ⊗ |Wb>` (Eqs. 12–16), `measure_all_families()` compares Table 21 `v1` against `v2 Lean`/`Keyed` and `v3 Shallow CLA` circuits (`qwm resources`), `qwm.data` supports paper image aliases (`House1`, `Flower`, etc.) plus native-size RGB preservation, and `notebooks/walkthrough.ipynb` adds v2/v3 sections.
+- **Simple CLI & offline pipeline**: added `qwm run` (one-command 4-part walkthrough), `qwm ui` alias for `qwm serve`, `--mode lsb/opap --reference` in `qwm verify`, RGB + native-resolution support on local files in `qwm embed`, and `OFFLINE=1` mode in `scripts/reproduce_all.sh`.
+- **Dashboard (`qwm ui`)**: compact 2-column scheme selector, viewport-anchored 1-Click `Run Full Demo`, and a dedicated `Paper Tables` view (`GET /api/paper`) displaying Table 21 vs v2/v3, 2-bpp PSNR limits, Table 9 consistency, and FRQI vs NEQR Table 11.
+
 ## 3.0.0
 
 Addresses the remaining classical-simulation and NISQ depth limitations beyond

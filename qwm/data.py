@@ -50,6 +50,15 @@ SKIMAGE_IMAGES = ("camera", "moon", "coins", "astronaut", "coffee", "chelsea", "
 
 SYNTHETIC_IMAGES = ("gradient", "checkerboard", "noise", "circles")
 
+_ALIASES = {
+    "house1": "house",
+    "flower": "flowers",
+    "pepper": "peppers",
+    "mandril": "baboon",
+    "jetplane": "airplane",
+    "pirate": "man",
+}
+
 
 def to_gray_u8(image: np.ndarray) -> np.ndarray:
     img = np.asarray(image)
@@ -120,20 +129,38 @@ def load_image(name_or_path: str, size: int | None = 256) -> np.ndarray:
         img = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
         if img is None:
             raise RuntimeError(f"could not read {p}")
-    elif name_or_path in STANDARD_IMAGES:
-        local = DATA_DIR / f"{name_or_path}.png"
-        if not local.exists():
-            download_standard_images([name_or_path])
-        img = cv2.imread(str(local), cv2.IMREAD_GRAYSCALE)
-    elif name_or_path in SKIMAGE_IMAGES:
-        import skimage.data as skdata
-
-        img = to_gray_u8(getattr(skdata, name_or_path)())
-    elif name_or_path in SYNTHETIC_IMAGES:
-        img = synthetic_image(name_or_path, size or 256)
     else:
-        raise KeyError(f"unknown image {name_or_path!r}")
+        key = _ALIASES.get(str(name_or_path).strip().lower(), str(name_or_path).strip().lower())
+        if key in STANDARD_IMAGES:
+            local = DATA_DIR / f"{key}.png"
+            if not local.exists():
+                download_standard_images([key])
+            img = cv2.imread(str(local), cv2.IMREAD_GRAYSCALE)
+        elif key in SKIMAGE_IMAGES:
+            import skimage.data as skdata
+
+            img = to_gray_u8(getattr(skdata, key)())
+        elif key in SYNTHETIC_IMAGES:
+            img = synthetic_image(key, size or 256)
+        else:
+            raise KeyError(f"unknown image {name_or_path!r}")
     return resize(img, size) if size else to_gray_u8(img)
+
+
+def load_image_preserve(name_or_path: str, size: int | None = None, allow_color: bool = False) -> np.ndarray:
+    """Load an image preserving color RGB when ``allow_color=True`` and native size when ``size=None``."""
+    p = Path(name_or_path)
+    if p.exists() and allow_color:
+        raw = cv2.imread(str(p), cv2.IMREAD_UNCHANGED)
+        if raw is None:
+            raise RuntimeError(f"could not read {p}")
+        if raw.ndim == 3:
+            rgb = cv2.cvtColor(raw[..., :3], cv2.COLOR_BGR2RGB)
+            if size:
+                interp = cv2.INTER_AREA if rgb.shape[0] > size else cv2.INTER_CUBIC
+                rgb = cv2.resize(rgb, (size, size), interpolation=interp)
+            return rgb.astype(np.uint8)
+    return load_image(name_or_path, size)
 
 
 def available_images(include_standard: bool = True) -> list[str]:
@@ -153,5 +180,10 @@ def default_image_set(offline: bool = False) -> list[str]:
 def save_image(image: np.ndarray, path) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(path), to_gray_u8(image))
+    arr = np.asarray(image)
+    if arr.ndim == 3 and arr.shape[2] >= 3:
+        arr = np.clip(np.rint(arr[..., :3]), 0, 255).astype(np.uint8)
+        cv2.imwrite(str(path), cv2.cvtColor(arr, cv2.COLOR_RGB2BGR))
+    else:
+        cv2.imwrite(str(path), to_gray_u8(arr))
     return path

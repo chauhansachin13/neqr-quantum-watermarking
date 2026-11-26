@@ -486,6 +486,35 @@ class DemoApp:
             )
         return {"row": r, "col": c, "p2": p2, "t1_us": t1 * 1e6, "t2_us": t2 * 1e6, "shots": shots, "rows": rows}
 
+    def paper_summary(self) -> dict:
+        from qwm.circuits import WatermarkEmbeddingCircuit, WatermarkGenerationCircuit
+        from qwm.paper_checks import check_table9, psnr_bounds_2bpp
+        from qwm.resources import complexity_comparison, measure_all_families, reported_resources
+        from qwm.watermark import block_trace
+
+        worked = [[50, 60], [48, 32]]
+        tr = block_trace(worked)
+        wb = WatermarkGenerationCircuit(worked).run()["watermark"]
+        emb = WatermarkEmbeddingCircuit(worked, wb)
+        t9 = check_table9()
+        return {
+            "worked": {
+                "block": worked,
+                "ppb": tr["ppb"],
+                "sum": tr["sum"],
+                "aa": tr["aa"],
+                "watermark": wb,
+                "watermarked_paper": emb.run()["watermarked_pixels"],
+                "unitary_inverse": emb.verify_unitary_inverse()["exact_unitary_inverse"],
+            },
+            "table21": reported_resources(8)["table21"],
+            "circuit_families": measure_all_families(worked),
+            "table9": t9,
+            "table9_violations": sum(not row["consistent"] for row in t9),
+            "psnr_bounds": psnr_bounds_2bpp(),
+            "complexity": complexity_comparison(),
+        }
+
 
 # --------------------------------------------------------------------------- #
 # HTTP layer
@@ -518,6 +547,8 @@ def make_handler(app: DemoApp):
                 return self._json(200, app.meta())
             if path == "/api/resources":
                 return self._json(200, app.resources())
+            if path == "/api/paper":
+                return self._json(200, app.paper_summary())
             if path in ("/", "/index.html"):
                 path = "/index.html"
             target = (STATIC / path.lstrip("/")).resolve()

@@ -68,9 +68,10 @@ The scikit-image samples and synthetic images work offline (`--offline`).
 ## Quick start
 
 ```bash
-qwm serve                     # interactive demo on http://127.0.0.1:8765
-qwm demo                      # the worked 2x2 example through every stage (classical + Qiskit circuits)
-qwm superposition             # v3: full NEQR superposition PPB, Grover tamper search, & 47q MPS verification
+qwm ui                        # simple Nixtio Bento dashboard on http://127.0.0.1:8765 (or `qwm serve`)
+qwm run                       # one-command complete paper + v2/v3 showcase (worked block, PSNR, NISQ, superposition)
+qwm demo                      # worked 2x2 example + Sec. 3.5 inverse U^dagger|W>=|C>(x)|Wb> + 13q superposition
+qwm superposition             # full NEQR superposition PPB, Grover tamper search, & 47q MPS verification
 ```
 
 Blind, keyed watermarking (v2 / v3):

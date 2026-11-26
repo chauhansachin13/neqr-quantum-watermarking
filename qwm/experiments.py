@@ -252,6 +252,7 @@ def attack_classification(samples_per_class: int = 500, size: int = 256, feature
 def resource_analysis(n: int = 8, out_dir: Path | None = None) -> dict:
     from qwm.resources import (
         complexity_comparison,
+        measure_all_families,
         measure_block_circuits,
         measure_modules,
         reported_resources,
@@ -261,6 +262,7 @@ def resource_analysis(n: int = 8, out_dir: Path | None = None) -> dict:
         "reported": reported_resources(n),
         "measured_modules": measure_modules(n),
         "measured_block_circuits": measure_block_circuits(),
+        "measured_all_families": measure_all_families(),
         "preparation_complexity": complexity_comparison(),
     }
     if out_dir is not None:
@@ -280,10 +282,13 @@ def draw_circuits(out_dir: Path, block=((50, 60), (48, 32))) -> list[Path]:
     import matplotlib.pyplot as plt
 
     from qwm.circuits import (
+        ShallowGenerationCircuit,
         WatermarkEmbeddingCircuit,
         WatermarkExtractionCircuit,
         WatermarkGenerationCircuit,
+        neqr_ppb_superposition_circuit,
     )
+    from qwm.circuits.lean import LeanGenerationCircuit
     from qwm.gates import (
         DividingFour,
         QuantumEqual,
@@ -317,6 +322,9 @@ def draw_circuits(out_dir: Path, block=((50, 60), (48, 32))) -> list[Path]:
         "watermark_generation": gen.circuit,
         "watermark_embedding": emb.circuit,
         "watermark_extraction": ext.circuit,
+        "lean_generation": LeanGenerationCircuit(block).circuit,
+        "shallow_generation": ShallowGenerationCircuit(block).circuit,
+        "neqr_superposition_ppb": neqr_ppb_superposition_circuit(block.astype(np.uint8)),
     }
     paths = []
     for name, qc in items.items():

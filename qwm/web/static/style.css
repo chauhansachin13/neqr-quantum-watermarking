@@ -74,14 +74,19 @@ input, select, button { font: inherit; }
   padding: 12px 12px 12px 0;
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
-  overflow: hidden;
+  overflow: clip;
 }
 
 /* ------------------------------------------------------------- Sidebar */
 .sidebar {
   display: flex;
   flex-direction: column;
-  padding: 20px 16px 14px 20px;
+  position: sticky;
+  top: 12px;
+  align-self: start;
+  height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
+  padding: 18px 16px 14px 20px;
   color: #e4e4e7;
 }
 
@@ -114,12 +119,12 @@ input, select, button { font: inherit; }
   border-radius: 999px;
 }
 
-.side-nav { display: flex; flex-direction: column; gap: 6px; }
+.side-nav { display: flex; flex-direction: column; gap: 4px; }
 .side-nav a {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 11px 14px;
+  padding: 9px 13px;
   border-radius: 999px;
   text-decoration: none;
   font-size: 13.5px;
@@ -148,10 +153,10 @@ input, select, button { font: inherit; }
   background: var(--lime);
   color: var(--lime-ink);
   border-radius: 20px;
-  padding: 16px;
+  padding: 13px 15px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .promo-title { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.2; }
 .promo-sub { font-size: 12px; color: rgba(20, 23, 10, .74); line-height: 1.35; margin: 0; }
@@ -357,7 +362,8 @@ input, select, button { font: inherit; }
 .kpi-side b { display: block; color: var(--ink); font-size: 12.5px; font-weight: 600; }
 
 /* Scheme pills in Embed card */
-.modes { display: grid; grid-template-columns: 1fr; gap: 6px; margin: 8px 0 12px; }
+.modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 8px 0 12px; }
+.mode:last-child { grid-column: 1 / -1; }
 .mode {
   display: flex;
   align-items: flex-start;
@@ -453,6 +459,7 @@ input[type=range] { accent-color: var(--charcoal); width: 135px; cursor: pointer
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   text-decoration: none;
   transition: transform .15s var(--ease), opacity .15s;
@@ -661,6 +668,20 @@ table { border-collapse: collapse; width: 100%; font-size: 12px; }
 }
 .neqr img { display: block; max-width: none; height: 200px; filter: invert(.92) hue-rotate(180deg); mix-blend-mode: lighten; }
 .dark-card h3 { color: #a1a1aa; font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; margin: 14px 0 8px; }
+.paper-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.paper-grid .card.dark-card { grid-column: auto; }
+.paper-grid .card:not(.dark-card) .tbl th,
+.paper-grid .card:not(.dark-card) .tbl td { color: var(--ink-2); border-bottom-color: var(--border); }
+.paper-grid .card:not(.dark-card) .tbl th { color: var(--muted); }
+.paper-grid .card:not(.dark-card) .tbl td:nth-child(2) { color: var(--ink); text-align: left; font-weight: 600; }
+.paper-grid .card.dark-card .tbl th { color: #a1a1aa; border-bottom-color: var(--border-dark); }
+.paper-grid .card.dark-card .tbl td { color: #f4f4f5; border-bottom-color: var(--border-dark); }
+.paper-grid .card.dark-card .tbl td:nth-child(2) { color: var(--lime); text-align: right; font-weight: 700; }
+.pill-status { font: 700 10px var(--mono); padding: 2px 7px; border-radius: 999px; }
+.pill-status.ok { background: var(--ok-soft); color: var(--ok); }
+.pill-status.bad { background: var(--signal-soft); color: var(--signal); }
+@media (max-width: 980px) { .paper-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .modes { grid-template-columns: 1fr; } }
 
 .toast {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 60;
@@ -675,7 +696,7 @@ table { border-collapse: collapse; width: 100%; font-size: 12px; }
 @media (max-width: 860px) {
   body { padding: 0; background: var(--shell-bg); }
   .app-shell { grid-template-columns: 1fr; border-radius: 0; padding: 0; box-shadow: none; }
-  .sidebar { flex-direction: row; align-items: center; padding: 12px 14px; gap: 12px; overflow-x: auto; }
+  .sidebar { position: static; height: auto; max-height: none; flex-direction: row; align-items: center; padding: 12px 14px; gap: 12px; overflow-x: auto; }
   .brand-row { padding: 0; }
   .side-nav { flex-direction: row; gap: 4px; }
   .side-nav a { padding: 7px 11px; white-space: nowrap; font-size: 12.5px; }

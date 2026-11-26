@@ -173,6 +173,65 @@ def measure_block_circuits(block=((50, 60), (48, 32))) -> dict[str, dict]:
     }
 
 
+def measure_all_families(block=((50, 60), (48, 32))) -> list[dict]:
+    """Compare measured circuit footprints across v1 (module-faithful), v2 (Lean), and v3 (Shallow CLA)."""
+    from qwm.circuits.lean import LeanEmbeddingCircuit, LeanExtractionCircuit, LeanGenerationCircuit
+    from qwm.circuits.secure import BlindVerificationCircuit, SecureEmbeddingCircuit
+    from qwm.circuits.shallow import (
+        ShallowBlindVerificationCircuit,
+        ShallowGenerationCircuit,
+        ShallowKeyedEmbeddingCircuit,
+    )
+    from qwm.watermark.embedding import embed_block
+
+    block = np.asarray(block)
+    gen = WatermarkGenerationCircuit(block)
+    wb = gen.run()["watermark"]
+    emb = WatermarkEmbeddingCircuit(block, wb)
+    w_paper = emb.run()["watermarked_block"]
+    ext = WatermarkExtractionCircuit(w_paper, wb)
+    w_lsb = embed_block(block, wb, mode="lsb")
+
+    lg = LeanGenerationCircuit(block)
+    le = LeanEmbeddingCircuit(block, wb)
+    lx = LeanExtractionCircuit(w_lsb, wb)
+    se = SecureEmbeddingCircuit(block, "key", "nonce", (2, 2), 0, 0)
+    w_key = se.run()["watermarked_block"]
+    sb = BlindVerificationCircuit(w_key, "key", "nonce", (2, 2), 0, 0)
+
+    sg = ShallowGenerationCircuit(block)
+    sse = ShallowKeyedEmbeddingCircuit(block, "key", "nonce", (2, 2), 0, 0)
+    sbv = ShallowBlindVerificationCircuit(w_key, "key", "nonce", (2, 2), 0, 0)
+
+    specs = [
+        ("v1 base generation", "v1-paper", gen.circuit),
+        ("v1 base embedding", "v1-paper", emb.circuit),
+        ("v1 base extraction", "v1-paper", ext.circuit),
+        ("v2 lean generation", "v2-lean", lg.circuit),
+        ("v2 lean embedding", "v2-lean", le.circuit),
+        ("v2 lean extraction", "v2-lean", lx.circuit),
+        ("v2 keyed embedding", "v2-keyed", se.circuit),
+        ("v2 keyed verification", "v2-keyed", sb.circuit),
+        ("v3 shallow CLA generation", "v3-shallow", sg.circuit),
+        ("v3 shallow keyed embed", "v3-shallow", sse.circuit),
+        ("v3 shallow blind verify", "v3-shallow", sbv.circuit),
+    ]
+    rows = []
+    for name, family, circ in specs:
+        m = measure_circuit(circ)
+        rows.append(
+            {
+                "circuit": name,
+                "family": family,
+                "qubits": m["qubits"],
+                "cnot_count": m["cnot_count"],
+                "cnot_level_depth": m["cnot_level_depth"],
+                "reversible_gates": m["reversible_gate_total"],
+            }
+        )
+    return rows
+
+
 def measure_modules(n: int = 8) -> dict[str, dict]:
     from qwm.gates import (
         DividingFour,

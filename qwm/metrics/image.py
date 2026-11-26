@@ -43,7 +43,8 @@ def ssim(original, distorted, peak: float = 255.0) -> float:
     from skimage.metrics import structural_similarity
 
     x, y = _pair(original, distorted)
-    return float(structural_similarity(x, y, data_range=peak))
+    channel_axis = -1 if x.ndim == 3 else None
+    return float(structural_similarity(x, y, data_range=peak, channel_axis=channel_axis))
 
 
 def histogram(image, bins: int = 256) -> np.ndarray:

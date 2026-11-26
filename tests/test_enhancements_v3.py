@@ -138,15 +138,40 @@ def test_thermal_nisq_api_and_study():
 
 
 def test_cli_v3_commands(tmp_path):
+    from qwm.circuits import WatermarkEmbeddingCircuit, WatermarkGenerationCircuit
+    from qwm.data import load_image, save_image
+
+    block = np.array([[50, 60], [48, 32]])
+    wb = WatermarkGenerationCircuit(block).run()["watermark"]
+    assert WatermarkEmbeddingCircuit(block, wb).verify_unitary_inverse()["exact_unitary_inverse"]
+    assert load_image("House1", 32).shape == (32, 32)
+    assert load_image("Flower", 32).shape == (32, 32)
+
     wm_path = tmp_path / "opt.png"
     assert cli_main(["embed", "camera", "--size", "64", "--mode", "keyed-opt", "--key", "k1", "-o", str(wm_path)]) == 0
     assert cli_main(["verify", str(wm_path), "--mode", "keyed", "--key", "k1"]) == 0
+
+    opap_path = tmp_path / "opap.png"
+    opap_bits = tmp_path / "opap.npy"
+    assert cli_main(["embed", "camera", "--size", "64", "--mode", "opap", "-o", str(opap_path), "--save-watermark", str(opap_bits)]) == 0
+    assert cli_main(["verify", str(opap_path), "--mode", "opap", "--reference", str(opap_bits)]) == 0
+
+    # Color RGB image preservation end-to-end with native size
+    rgb_in = tmp_path / "rgb_cover.png"
+    rgb_wm = tmp_path / "rgb_wm.png"
+    rgb = np.random.default_rng(1).integers(0, 256, (32, 40, 3), dtype=np.uint8)
+    save_image(rgb, rgb_in)
+    assert cli_main(["embed", str(rgb_in), "--mode", "recovery-dual", "--key", "rgbk", "-o", str(rgb_wm)]) == 0
+    assert cli_main(["verify", str(rgb_wm), "--mode", "recovery-dual", "--key", "rgbk"]) == 0
 
     dual_path = tmp_path / "dual.png"
     assert cli_main(["embed", "camera", "--size", "64", "--mode", "recovery-dual", "--key", "k2", "-o", str(dual_path)]) == 0
     assert cli_main(["verify", str(dual_path), "--mode", "recovery-dual", "--key", "k2"]) == 0
 
     assert cli_main(["superposition", "--image", "camera", "--shots", "128"]) == 0
+    assert cli_main(["run", "--image", "camera", "--size", "64"]) == 0
+    assert cli_main(["run", "camera", "--size", "32"]) == 0
+    assert cli_main(["run", "--size", "32"]) == 0
 
 
 def test_web_v3_endpoints():
@@ -163,6 +188,11 @@ def test_web_v3_endpoints():
             )
             with urllib.request.urlopen(req, timeout=20) as resp:
                 return json.loads(resp.read().decode("utf-8"))
+
+        with urllib.request.urlopen(base + "/api/paper", timeout=20) as resp:
+            paper = json.loads(resp.read().decode("utf-8"))
+        assert paper["worked"]["unitary_inverse"] and paper["table9_violations"] == 6
+        assert len(paper["circuit_families"]) == 11
 
         e_opt = post("/api/embed", {"image": "camera", "mode": "keyed-opt", "key": "web-k"})
         assert e_opt["metrics"]["psnr"] > 46.0

@@ -55,6 +55,18 @@ def cmd_demo(args) -> int:
     print("Step-wise extraction of the first watermarked pixel (Table 4):")
     for step in extract_pixel_trace(e["watermarked_pixels"][0], g["watermark"][:2])["steps"]:
         print(f"  bit {step['bit']}: XOR -> {step['xor_result']}, RPS -> {step['rps_result']}, QE equal={step['qe_equal']}, Pauli-X={step['pauli_x_applied']}, extracted bit={step['extracted_bit']}")
+
+    from qwm.circuits import ShallowGenerationCircuit, run_neqr_ppb_superposition
+    from qwm.circuits.lean import LeanGenerationCircuit
+
+    unit = emb.verify_unitary_inverse()
+    lg = LeanGenerationCircuit(block)
+    sg = ShallowGenerationCircuit(block)
+    sup = run_neqr_ppb_superposition(block.astype(np.uint8))
+    print(f"\nPaper Eq.(12)-(16) unitary inverse U^dagger|W>=|C>(x)|Wb>: exact={unit['exact_unitary_inverse']}")
+    print(f"v2 Lean generation    ({lg.circuit.num_qubits} qubits): Wb={lg.run()['watermark']} clean={lg.run()['ancillas_clean']}")
+    print(f"v3 Shallow CLA gen    ({sg.circuit.num_qubits} qubits): Wb={sg.run()['watermark']} clean={sg.run()['ancillas_clean']}")
+    print(f"v3 NEQR superposition ({sup['qubits']} qubits): exact_ppb={sup['exact_match']} uniform={sup['uniform']} ancilla_clean={sup['ancilla_clean_prob']:.6f}")
     return 0
 
 
@@ -80,41 +92,56 @@ def _keyed_scheme(mode: str, key: str | None, nonce: str):
 
 
 def cmd_embed(args) -> int:
-    from qwm.data import load_image, save_image
+    from qwm.data import load_image_preserve, save_image
     from qwm.metrics.image import quality_report
     from qwm.watermark import embed_image
 
-    cover = load_image(args.image, args.size)
+    is_file = Path(args.image).exists()
+    size = None if (args.size == 0 or (args.size is None and is_file)) else (args.size or 256)
+    cover = load_image_preserve(args.image, size=size, allow_color=(args.mode in KEYED_MODES))
     if args.mode in KEYED_MODES:
         watermarked, wb = _keyed_scheme(args.mode, args.key, args.nonce).embed(cover), None
     else:
         watermarked, wb = embed_image(cover, mode=args.mode)
     out = save_image(watermarked, args.output)
     q = quality_report(cover, watermarked)
-    print(f"watermarked image written to {out}  (PSNR {q['psnr']:.2f} dB, SSIM {q['ssim']:.4f}, mode={args.mode})")
+    print(f"watermarked image written to {out}  (shape={cover.shape}, PSNR {q['psnr']:.2f} dB, SSIM {q['ssim']:.4f}, mode={args.mode})")
     if args.save_watermark and wb is not None:
         np.save(args.save_watermark, wb)
         print(f"watermark bits saved to {args.save_watermark} shape={wb.shape}")
+    elif args.mode not in KEYED_MODES and not args.save_watermark:
+        print("tip: pass --save-watermark wb.npy to verify later, or use --mode keyed-opt / recovery-dual for blind verification")
     elif args.mode in KEYED_MODES:
         print("blind scheme: verification needs only the key and nonce (no reference bits)")
     return 0
 
 
 def cmd_verify(args) -> int:
-    from qwm.data import load_image, save_image
+    from qwm.data import load_image_preserve, save_image
     from qwm.studies import _overlay
+    from qwm.watermark import extract_image, tamper_map
 
-    img = load_image(args.image, None)
-    scheme = _keyed_scheme(args.mode, args.key, args.nonce)
-    if args.mode in ("keyed", "keyed-opt"):
-        res = scheme.verify(img)
-        tamper, block = res.tamper_map, 2
-    elif args.mode == "recovery":
-        res = scheme.recover(img)
-        tamper, block = res.tamper_map, 4
+    is_keyed = args.mode in KEYED_MODES
+    img = load_image_preserve(args.image, size=None, allow_color=is_keyed)
+    if not is_keyed:
+        if not args.reference:
+            raise SystemExit(f"--reference <wb.npy> is required when verifying --mode {args.mode} (or use --mode keyed / recovery)")
+        ref = np.load(args.reference)
+        raw, _ = extract_image(img, ref)
+        tamper = tamper_map(raw, ref)
+        block = 2
+        res = None
     else:
-        res = scheme.recover(img)
-        tamper, block = res.tamper_map, 8
+        scheme = _keyed_scheme(args.mode, args.key, args.nonce)
+        if args.mode in ("keyed", "keyed-opt"):
+            res = scheme.verify(img)
+            tamper, block = res.tamper_map, 2
+        elif args.mode == "recovery":
+            res = scheme.recover(img)
+            tamper, block = res.tamper_map, 4
+        else:
+            res = scheme.recover(img)
+            tamper, block = res.tamper_map, 8
     n_bad, n = int(tamper.sum()), int(tamper.size)
     verdict = "AUTHENTIC" if n_bad == 0 else f"TAMPERED: {n_bad} of {n} blocks ({100 * n_bad / n:.2f} %) failed"
     print(f"{args.image}: {verdict}")
@@ -122,9 +149,10 @@ def cmd_verify(args) -> int:
         import cv2
 
         Path(args.overlay).parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(args.overlay), cv2.cvtColor(_overlay(img, tamper, block), cv2.COLOR_RGB2BGR))
+        vis = img if img.ndim == 2 else cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        cv2.imwrite(str(args.overlay), cv2.cvtColor(_overlay(vis, tamper, block), cv2.COLOR_RGB2BGR))
         print(f"tamper map written to {args.overlay}")
-    if args.mode in ("recovery", "recovery-dual") and n_bad and args.recovered:
+    if res is not None and args.mode in ("recovery", "recovery-dual") and n_bad and args.recovered:
         save_image(res.recovered, args.recovered)
         print(f"repaired image written to {args.recovered} ({100 * res.restored_fraction:.1f} % of failed blocks rebuilt from recovery codes)")
     return 0 if n_bad == 0 else 2
@@ -216,10 +244,69 @@ def cmd_resources(args) -> int:
     rep = data["reported"]
     print(f"Reported (n={args.n}): qubits per module {rep['module_qubits']}; gate complexity {rep['module_gate_complexity']}")
     print(f"  generation {rep['watermark_generation']}\n  embedding  {rep['embedding']}\n  extraction {rep['extraction']}")
-    print("Measured (this implementation):")
+    print("Measured (v1 module-faithful block circuits):")
     for name, m in data["measured_block_circuits"].items():
         print(f"  {name:22s} qubits={m['qubits']:4d} (data {m['data_qubits']}, ancilla {m['ancilla_qubits']}) gates={m['reversible_gates']} depth={m['reversible_depth']} CNOT-level: {m['cnot_count']} CNOT, depth {m['cnot_level_depth']}")
+    print("Comparison across circuit generations (2x2 block):")
+    for row in data["measured_all_families"]:
+        print(f"  {row['circuit']:26s} [{row['family']:10s}] qubits={row['qubits']:3d}  CNOT={row['cnot_count']:4d}  depth={row['cnot_level_depth']:4d}")
     print("Preparation complexity:", data["preparation_complexity"])
+    return 0
+
+
+def cmd_run(args) -> int:
+    """Single-command guided tour of the paper + v2/v3 extensions."""
+    import pandas as pd
+
+    from qwm.data import load_image
+    from qwm.metrics.image import quality_report
+    from qwm.paper_checks import check_table9
+    from qwm.resources import measure_all_families
+    from qwm.secure import (
+        DualPartnerSelfRecoveringWatermark,
+        SecureWatermark,
+        SelfRecoveringWatermark,
+    )
+    from qwm.tamper import apply_manipulation
+    from qwm.watermark import embed_image
+
+    image_name = (getattr(args, "image_opt", None) or getattr(args, "image", None) or "camera").strip() or "camera"
+
+    print("=== 1/4 Worked Block (Sec. 3 / Fig. 6, 12, 13, 14) ===")
+    cmd_demo(argparse.Namespace(block="[[50,60],[48,32]]"))
+
+    print(f"\n=== 2/4 Imperceptibility & Self-Recovery on {image_name!r} ({args.size}x{args.size}) ===")
+    img = load_image(image_name, args.size)
+    rows = []
+    for name, wm_img in [
+        ("paper (v1)", embed_image(img, mode="paper")[0]),
+        ("lsb (v1)", embed_image(img, mode="lsb")[0]),
+        ("opap (v3)", embed_image(img, mode="opap")[0]),
+        ("keyed (v2)", SecureWatermark("demo", "run").embed(img)),
+        ("keyed-opt (v3)", SecureWatermark("demo", "run", optimize=True).embed(img)),
+        ("recovery-4x4 (v2)", SelfRecoveringWatermark("demo", "run").embed(img)),
+        ("recovery-dual (v3)", DualPartnerSelfRecoveringWatermark("demo", "run").embed(img)),
+    ]:
+        q = quality_report(img, wm_img)
+        rows.append({"scheme": name, "psnr_db": q["psnr"], "ssim": q["ssim"], "mse": q["mse"]})
+    print(pd.DataFrame(rows).to_string(index=False, float_format=lambda v: f"{v:.4f}"))
+
+    du = DualPartnerSelfRecoveringWatermark("demo", "run")
+    wm_d = du.embed(img)
+    attacked, changed = apply_manipulation("blackout", wm_d, np.random.default_rng(7), img, fraction=0.25)
+    rec = du.recover(attacked)
+    print(
+        f"Dual-partner 8x8 recovery (25% blackout): edited region {quality_report(img[changed], attacked[changed])['psnr']:.2f} dB "
+        f"-> {quality_report(img[changed], rec.recovered[changed])['psnr']:.2f} dB ({100 * rec.restored_fraction:.1f}% restored from codes)"
+    )
+
+    print("\n=== 3/4 Quantum Circuit Families & NEQR Superposition ===")
+    print(pd.DataFrame(measure_all_families()).to_string(index=False))
+    cmd_superposition(argparse.Namespace(image=image_name, key="run-key", shots=128))
+
+    print("\n=== 4/4 Paper Table 9 Consistency ===")
+    t9 = check_table9()
+    print(f"Verified {len(t9)} rows: {sum(not r['consistent'] for r in t9)} violate Fuchs-van de Graaf bounds.")
     return 0
 
 
@@ -346,25 +433,32 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"qwm {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
+    s = sub.add_parser("run", help="one-command complete showcase of paper reproduction + v2/v3 enhancements")
+    s.add_argument("image", nargs="?", default=None, help="test image (default: camera, works offline)")
+    s.add_argument("--image", dest="image_opt", default=None, help="test image name or path")
+    s.add_argument("--size", type=int, default=128)
+    s.set_defaults(func=cmd_run)
+
     s = sub.add_parser("demo", help="run the worked 2x2 example through the reference code and the Qiskit circuits")
     s.add_argument("--block", default="[[50,60],[48,32]]", help="2x2 block as JSON")
     s.set_defaults(func=cmd_demo)
 
-    s = sub.add_parser("embed", help="watermark an image")
+    s = sub.add_parser("embed", help="watermark an image (supports color RGB images in keyed/recovery modes)")
     s.add_argument("image", help="image name (lena, baboon, camera, ...) or path")
     s.add_argument("-o", "--output", default="watermarked.png")
     s.add_argument("--mode", choices=("paper", "lsb", "opap", "keyed", "keyed-opt", "recovery", "recovery-dual"), default="paper", help="paper/lsb/opap = base scheme; keyed*/recovery* = proposed blind schemes")
     s.add_argument("--key", help="secret key (keyed / recovery modes)")
     s.add_argument("--nonce", default="", help="per-image nonce, e.g. an image ID (keyed / recovery modes)")
-    s.add_argument("--size", type=int, default=256)
+    s.add_argument("--size", type=int, default=None, help="resize to NxN (default: 256 for named samples, native size for local files; 0=native)")
     s.add_argument("--save-watermark", help="save the generated watermark bits as .npy (base scheme)")
     s.set_defaults(func=cmd_embed)
 
-    s = sub.add_parser("verify", help="blind tamper check (and repair) of an image watermarked in keyed / recovery mode")
+    s = sub.add_parser("verify", help="verify (and repair) a watermarked image (blind for keyed*/recovery*, or --reference .npy for lsb/opap)")
     s.add_argument("image")
-    s.add_argument("--mode", choices=KEYED_MODES, default="keyed")
-    s.add_argument("--key", required=True)
+    s.add_argument("--mode", choices=("lsb", "opap") + KEYED_MODES, default="keyed")
+    s.add_argument("--key", default=None)
     s.add_argument("--nonce", default="")
+    s.add_argument("--reference", help=".npy file with reference watermark bits (for lsb/opap modes)")
     s.add_argument("--overlay", help="write the image with failed blocks highlighted")
     s.add_argument("--recovered", help="recovery mode: write the repaired image")
     s.set_defaults(func=cmd_verify)
@@ -451,11 +545,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", type=Path, default=DEFAULT_OUT / "paper_checks")
     s.set_defaults(func=cmd_paper_checks)
 
-    s = sub.add_parser("serve", help="interactive web demo on http://localhost:8765")
-    s.add_argument("--host", default="127.0.0.1")
-    s.add_argument("--port", type=int, default=8765)
-    s.add_argument("--no-browser", action="store_true")
-    s.set_defaults(func=cmd_serve)
+    for alias in ("serve", "ui"):
+        s = sub.add_parser(alias, help="interactive web dashboard on http://localhost:8765")
+        s.add_argument("--host", default="127.0.0.1")
+        s.add_argument("--port", type=int, default=8765)
+        s.add_argument("--no-browser", action="store_true")
+        s.set_defaults(func=cmd_serve)
 
     s = sub.add_parser("download-images", help="download the standard grayscale test images")
     s.set_defaults(func=cmd_download)

@@ -390,12 +390,66 @@ function setupTheme() {
 
 function setupSpy() {
   const links = [...document.querySelectorAll(".side-nav a")];
+  const dash = $("dashboard-view");
+  const paper = $("paper-view");
+  const showView = (view) => {
+    const isPaper = view === "paper";
+    if (dash) dash.hidden = isPaper;
+    if (paper) paper.hidden = !isPaper;
+    if (isPaper) loadPaperSummary();
+  };
   links.forEach((a) => {
-    a.addEventListener("click", () => {
+    a.addEventListener("click", (ev) => {
       links.forEach((l) => l.classList.remove("active"));
       a.classList.add("active");
+      const view = a.dataset.view || "dashboard";
+      showView(view);
+      if (view === "paper") ev.preventDefault();
     });
   });
+  if ($("back-overview")) {
+    $("back-overview").addEventListener("click", () => {
+      links.forEach((l) => l.classList.toggle("active", l.getAttribute("href") === "#top"));
+      showView("dashboard");
+    });
+  }
+}
+
+async function loadPaperSummary() {
+  const r = await api("/api/paper");
+  $("paper-families-tbl").querySelector("tbody").innerHTML = r.circuit_families
+    .map((x) => `<tr><td>${x.circuit}</td><td>${x.family}</td><td>${x.qubits}</td><td>${x.cnot_count}</td><td>${x.cnot_level_depth}</td></tr>`)
+    .join("");
+  $("paper-bounds-tbl").querySelector("tbody").innerHTML = r.psnr_bounds
+    .map((x) => `<tr><td>${x.method}</td><td>${fmt(x.mse, 4)}</td><td>${fmt(x.psnr_db, 2)}</td></tr>`)
+    .join("");
+  const w = r.worked;
+  $("paper-worked-note").textContent =
+    `Worked block [[50,60],[48,32]]: AA=${w.aa}, Wb=${w.watermark.join("")}, |W>=${JSON.stringify(w.watermarked_paper)}, exact inverse U†|W>=|C>⊗|Wb>: ${w.unitary_inverse}. Table 9 violations: ${r.table9_violations}/${r.table9.length}.`;
+  $("paper-t9-tbl").querySelector("tbody").innerHTML = r.table9
+    .map((x) => `<tr><td>${x.image}</td><td>${x.fidelity}</td><td>${x.trace_distance}</td><td>${x.purity}</td><td><span class="pill-status ${x.consistent ? "ok" : "bad"}">${x.consistent ? "OK" : "Violates"}</span></td></tr>`)
+    .join("");
+  $("paper-comp-tbl").querySelector("tbody").innerHTML = r.complexity
+    .map((x) => `<tr><td>${x.image}</td><td>${x.n}</td><td>${Number(x.FRQI).toLocaleString()}</td><td>${Number(x.NEQR).toLocaleString()}</td></tr>`)
+    .join("");
+}
+
+async function runFullDemo() {
+  const dash = $("dashboard-view");
+  const paper = $("paper-view");
+  if (dash) dash.hidden = false;
+  if (paper) paper.hidden = true;
+  await embed();
+  await attack({ kind: "local", name: "lsb_preserving_splice", fraction: 0.2 });
+  await verify();
+  if (state.meta && state.meta.classifier && state.meta.classifier.ready) {
+    await classify().catch(() => null);
+  } else {
+    const meta = await api("/api/meta").catch(() => null);
+    if (meta && meta.classifier && meta.classifier.ready) await classify().catch(() => null);
+  }
+  await inspectBlock(64, 64);
+  await runBlockNisq();
 }
 
 // --------------------------------------------------------------------------- wiring
@@ -432,6 +486,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("nisq-p2").addEventListener("input", () => ($("nisq-p2-v").textContent = $("nisq-p2").value));
   $("nisq-t1").addEventListener("input", () => ($("nisq-t1-v").textContent = $("nisq-t1").value));
   $("nisq-run").addEventListener("click", (e) => busy(e.target, runBlockNisq));
+  if ($("run-full")) $("run-full").addEventListener("click", (e) => busy(e.target, runFullDemo));
   $("upload").addEventListener("change", () => {
     const hasFile = Boolean($("upload").files[0]);
     $("image").disabled = hasFile;

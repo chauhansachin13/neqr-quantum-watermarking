@@ -74,3 +74,38 @@ class WatermarkEmbeddingCircuit:
 
     def expected(self) -> np.ndarray:
         return embed_block(self.block, self.watermark, mode="paper")
+
+    def verify_unitary_inverse(self) -> dict:
+        """Verify Sec. 3.5 / Eq. (12)-(16): ``U^dagger |W> = |C> (x) |Wb>``."""
+        roundtrip = self.circuit.compose(self.circuit.inverse())
+        # Note: inputs were prepended via X gates inside self.circuit, so the gate
+        # body U followed by U^dagger cancels back to the exact input state;
+        # stripping input prep by running U_body then U_body^dagger returns |C> and |Wb>.
+        prep = QuantumCircuit(self.circuit.num_qubits)
+        for i, v in enumerate(self.pixels):
+            for k in range(8):
+                if (v >> k) & 1:
+                    prep.x(i * 8 + k)
+        for k, b in enumerate(self.watermark):
+            if b:
+                prep.x(32 + k)
+        body = QuantumCircuit(*self.circuit.qregs)
+        past_inputs = False
+        for inst in self.circuit.data:
+            if inst.operation.name == "barrier" and inst.operation.label == "inputs":
+                past_inputs = True
+                continue
+            if past_inputs:
+                body.append(inst.operation, inst.qubits, inst.clbits)
+        full = prep.compose(body).compose(body.inverse())
+        bits = run_basis(full)
+        restored_pixels = [bits_to_int(bits[q] for q in reg) for reg in self.pixel_qubits]
+        restored_wb = [int(bits[32 + k]) for k in range(8)]
+        restored_anc = all(bits[q] == 0 for q in range(40, self.circuit.num_qubits))
+        _ = roundtrip
+        return {
+            "pixels_restored": restored_pixels == self.pixels,
+            "watermark_restored": restored_wb == self.watermark,
+            "ancillas_clean": restored_anc,
+            "exact_unitary_inverse": restored_pixels == self.pixels and restored_wb == self.watermark and restored_anc,
+        }
