@@ -13,6 +13,7 @@ const state = {
   airplaneCover: "",
   airplaneWm: "",
   airplaneBlock: null,
+  lastTopic: null,
 };
 
 const MODE_INFO = {
@@ -544,8 +545,30 @@ function setupInsideNav() {
   }
 }
 
-// --------------------------------------------------------------------------- Grounded AI Assistant
-function appendMsg(role, title, text, sources = []) {
+// --------------------------------------------------------------------------- Grounded RAG Assistant
+function appendInlineRich(parent, line) {
+  const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  for (const part of parts) {
+    if (!part) continue;
+    if (part.startsWith("**") && part.endsWith("**")) {
+      const b = document.createElement("strong");
+      b.textContent = part.slice(2, -2);
+      parent.appendChild(b);
+    } else if (part.startsWith("*") && part.endsWith("*")) {
+      const em = document.createElement("em");
+      em.textContent = part.slice(1, -1);
+      parent.appendChild(em);
+    } else if (part.startsWith("`") && part.endsWith("`")) {
+      const c = document.createElement("code");
+      c.textContent = part.slice(1, -1);
+      parent.appendChild(c);
+    } else {
+      parent.appendChild(document.createTextNode(part));
+    }
+  }
+}
+
+function appendMsg(role, title, text, sources = [], suggestions = []) {
   const thread = $("ask-messages");
   const wrap = document.createElement("div");
   wrap.className = `qa-msg ${role}`;
@@ -553,13 +576,35 @@ function appendMsg(role, title, text, sources = []) {
   bubble.className = "qa-bubble";
 
   if (title) {
-    const st = document.createElement("strong");
+    const st = document.createElement("span");
+    st.className = "qa-bubble-title";
     st.textContent = title;
     bubble.appendChild(st);
   }
-  const p = document.createElement("p");
-  p.textContent = text;
-  bubble.appendChild(p);
+
+  let list = null;
+  for (const rawLine of String(text || "").split("\n")) {
+    const line = rawLine.trim();
+    if (!line) {
+      list = null;
+      continue;
+    }
+    if (line.startsWith("• ") || line.startsWith("- ")) {
+      if (!list) {
+        list = document.createElement("ul");
+        list.className = "qa-list";
+        bubble.appendChild(list);
+      }
+      const li = document.createElement("li");
+      appendInlineRich(li, line.slice(2));
+      list.appendChild(li);
+    } else {
+      list = null;
+      const p = document.createElement("p");
+      appendInlineRich(p, line);
+      bubble.appendChild(p);
+    }
+  }
 
   if (sources.length) {
     const srcRow = document.createElement("div");
@@ -571,6 +616,20 @@ function appendMsg(role, title, text, sources = []) {
       srcRow.appendChild(sp);
     }
     bubble.appendChild(srcRow);
+  }
+
+  if (suggestions.length) {
+    const fRow = document.createElement("div");
+    fRow.className = "qa-followups";
+    for (const q of suggestions.slice(0, 3)) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "qa-followup-btn";
+      b.textContent = q;
+      b.addEventListener("click", () => submitQuestion(q));
+      fRow.appendChild(b);
+    }
+    bubble.appendChild(fRow);
   }
 
   wrap.appendChild(bubble);
@@ -594,12 +653,13 @@ async function submitQuestion(qText) {
   thread.scrollTop = thread.scrollHeight;
 
   try {
-    const r = await api("/api/ask", { question: q });
+    const r = await api("/api/ask", { question: q, last_topic: state.lastTopic });
     typing.remove();
-    appendMsg("bot", r.grounded ? r.title || "Grounded Answer" : "Scope Notice", r.answer, r.sources || []);
+    if (r.topic_id) state.lastTopic = r.topic_id;
+    appendMsg("bot", r.title || "", r.answer, r.sources || [], r.suggestions || []);
   } catch (err) {
     typing.remove();
-    appendMsg("bot", "Error", err.message);
+    appendMsg("bot", "Connection Issue", err.message);
   }
 }
 

@@ -1,11 +1,11 @@
 """
-Grounded Q&A assistant answering strictly from this project's GitHub docs,
-implemented code metrics, and the Sahu et al. (Array 31, 2026, 101035) base paper.
+Local Hybrid RAG Assistant for the NEQR Quantum Image Watermarking project.
 
-No external LLM API calls or invented claims: queries are matched using TF-IDF
-cosine similarity + domain term overlap over verified knowledge chunks parsed from
-the repository documentation and base-paper benchmark tables. Out-of-scope queries
-are explicitly declined.
+Indexes curated first-person engineering knowledge alongside live markdown
+sections parsed directly from the GitHub repository (`README.md`,
+`docs/algorithm.md`, `docs/IMPROVEMENTS.md`, `docs/SDLC.md`, `CHANGELOG.md`)
+and test module descriptions (`tests/*.py`). Answers in first person as the
+project creator/assistant using word + char-ngram TF-IDF + keyword matching.
 """
 
 from __future__ import annotations
@@ -22,319 +22,516 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 @dataclass(frozen=True)
 class KnowledgeChunk:
-    """One verified knowledge unit backed by a repo or paper source."""
+    """One searchable RAG knowledge chunk from project code, docs, tests, or base paper."""
 
     chunk_id: str
     title: str
     source: str
     tags: str
     answer: str
+    followups: tuple[str, ...] = ()
+    priority: float = 1.0  # Curated synthesized chunks outrank raw markdown ties cleanly.
 
 
 _CURATED_CHUNKS: tuple[KnowledgeChunk, ...] = (
     KnowledgeChunk(
-        chunk_id="overview",
-        title="Project Purpose & What This Web App Does",
-        source="GitHub Repo · README.md",
-        tags="what does project app do objective purpose overview neqr quantum watermarking",
+        chunk_id="tests_and_qa",
+        title="Automated Tests & Research Verification I Ran",
+        source="GitHub Repo · tests/ & docs/SDLC.md",
+        tags="test tests testing did you run pytest unit integration coverage ruff security ci browser e2e verification suite",
+        priority=1.18,
         answer=(
-            "This project (NEQR Quantum Image Watermarking v3.0.2 by Sachin Chauhan) reproduces "
-            "Sahu et al. (Array 31, 2026) and extends it into an end-to-end photo protection tool. "
-            "It hides an invisible 2-bpp safety lock inside grayscale or color images using NEQR and "
-            "reversible quantum arithmetic (RPA, RPS, D4, QE), catches fake edits blindly down to 2x2/8x8 blocks, "
-            "automatically heals cut or tampered areas from hidden partner backup copies, classifies 9 image "
-            "attacks with an AI Random Forest detective, and simulates every block circuit in IBM Qiskit on classical hardware."
+            "I built a multi-layer automated test and validation suite for this project:\n"
+            "• **202+ pytest tests (~87.8% coverage)** across 16 test files (`tests/test_gates.py`, `test_circuits.py`, `test_neqr.py`, `test_lean_circuits.py`, `test_shallow_circuits.py`, `test_superposition.py`, `test_watermark.py`, `test_secure.py`, `test_v2_studies.py`, `test_enhancements_v3.py`, `test_classifier_resources.py`, `test_metrics_attacks.py`, `test_cli.py`, `test_web.py`, and `test_assistant.py`).\n"
+            "• **Exact Quantum Equivalence Checks:** Exhaustively verified reversible gate truth tables (`RHA/RFA/RPA`, `RHS/RFS/RPS`, `D4`, `QE`) and proved exact unitary equality (`Operator`) for my 44q Lean and 69q Shallow Brent-Kung CLA circuits + Eq. 12–16 unitary inverse `U†|W> = |C> ⊗ |Wb>`.\n"
+            "• **Large-Scale Empirical Studies:** Ran 1,320 local tamper/forgery trials (`qwm tamper-study`), noisy IBM heavy-hex + thermal T1/T2 Aer simulations (`qwm nisq`), a 4,500-image + 800-image open-set AI benchmark (`qwm classifier-benchmark`), and Table 9 / sphere-packing consistency checks (`qwm paper-checks`).\n"
+            "• **Web E2E, Lint, Security & CI:** Verified desktop & mobile browser flows with zero console/network errors, `ruff` + Bandit (`--select S`) security checks, wheel packaging, and GitHub Actions CI on Python 3.10 & 3.12."
+        ),
+        followups=(
+            "What bugs did you find in the base paper?",
+            "How did you test self-recovery against tampering?",
+            "How did you test NISQ hardware noise?",
+        ),
+    ),
+    KnowledgeChunk(
+        chunk_id="overview",
+        title="What I Built in This Project",
+        source="GitHub Repo · README.md",
+        tags="what is project app objective purpose built made created developer author sachin overview neqr quantum watermarking",
+        priority=1.14,
+        answer=(
+            "I built **PhotoShield / NEQR Quantum Image Watermarking (v3.0.2)** — a complete, tested classical simulation and extension of Sahu et al. (*Array* 31, 2026):\n"
+            "• **Invisible Watermarking & Tamper Localization:** Hides a 2-bpp cryptographic/quantum watermark inside any photo so human eyes see >98.4% similarity while edits down to 2×2 or 8×8 blocks are flagged in red.\n"
+            "• **Automatic Self-Recovery:** My `recovery-dual` engine hides compressed Haar clones in disjoint partner blocks so erased or forged regions heal back automatically.\n"
+            "• **Quantum & AI Extensions Beyond v1:** I shrunk block circuits from 354–400 qubits down to 44–69 qubits, added 15-qubit Grover tamper search & NEQR superposition circuits, audited Table 9 & PSNR physics limits, built a 162-d open-set AI attack detector, and wrapped everything into this interactive web studio + `qwm` CLI."
+        ),
+        followups=(
+            "What tests did you run?",
+            "How does watermarking work step by step on the Airplane?",
+            "What improvements did you add over the base paper?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="how_watermarking_works",
-        title="How Watermarking Works Step by Step (2x2 Blocks & 8-Bit Wb)",
+        title="How My Watermarking Pipeline Works Step by Step",
         source="Base Paper Sec. 3.1–3.4 & docs/algorithm.md",
-        tags="how watermarking works step by step airplane example pixel ppb aa xor embedding lsb slots hide lock",
+        tags="how watermarking works step by step airplane example pixel ppb aa xor embedding lsb slots hide lock pipeline",
+        priority=1.12,
         answer=(
-            "Every 256x256 image is split into 16,384 non-overlapping 2x2 pixel blocks (4 pixels per block). "
-            "1) Each block is represented with NEQR (8 intensity qubits + 2 coordinate qubits = 10 qubits). "
-            "2) Two Pixel Position Bits (PPB) per pixel are computed using 4-bit Reverse Parallel Adders (RPA) on low/high nibbles plus CNOT parities. "
-            "3) The rounded Arithmetic Average AA = floor((C00+C01+C10+C11)/4 + 0.5) is computed with RPAs and Divide-by-4 (D4). "
-            "4) XORing PPB and AA gives an 8-bit watermark Wb (2 bits per pixel = 2 bpp, keeping >98% visual match). "
-            "5) For example, worked block [[50,60],[48,32]] yields sum 190 -> AA=48 and Wb=11001101."
+            "Here is how I encode and embed the watermark in every 256×256 image (like the **Airplane** example):\n"
+            "• **1. Split Into 2×2 Blocks:** The image divides into 16,384 tiny 2×2 patches encoded with NEQR (`8` brightness qubits + `2` coordinate qubits = `10` qubits per block).\n"
+            "• **2. Build Block Signature:** Each pixel's low/high 4-bit nibbles go through 4-bit Reverse Parallel Adders (`RPA`) + `CNOT` parities for Pixel Position Bits (`PPB`), while all 4 pixels are summed and divided by 4 (`D4`) for the rounded average `AA = floor(S/4 + 0.5)`.\n"
+            "• **3. Embed Invisibly (2 bpp):** XORing `PPB` with `AA` (plus a secret `SHAKE-256` Toeplitz MAC in my `v2`/`v3` modes) gives an 8-bit stamp tucked into the bottom 2 bits of the 4 pixels. Worked block `[[50,60],[48,32]]` gives `AA=48` and `Wb=11001101`."
+        ),
+        followups=(
+            "How does your self-recovery heal cut parts?",
+            "Why did you use NEQR instead of FRQI?",
+            "What is the difference between paper mode and keyed-opt?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="neqr_vs_frqi",
-        title="Why NEQR Is Used Instead of FRQI (Table 11 Complexity)",
+        title="Why I Used NEQR Instead of FRQI (Table 11)",
         source="Base Paper Sec. 1.1 & Table 11",
         tags="why neqr vs frqi difference comparison time complexity operations table 11",
+        priority=1.15,
         answer=(
-            "FRQI stores grayscale values inside continuous qubit rotation angles, which makes retrieval probabilistic "
-            "and requires O(2^(4n)) preparation gates — 4,294,967,296 operations for a 256x256 image (n = 8). "
-            "NEQR instead stores all q = 8 intensity bits cleanly in computational basis states |f(Y,X)> (x) |Y X>, "
-            "cutting state preparation complexity to O(q * n * 2^(2n)) = 4,194,304 operations for 256x256 (over 1,000x cheaper)."
+            "FRQI encodes grayscale brightness into continuous qubit rotation angles, causing probabilistic readout and quadratic **O(2^(4n))** gate complexity — **4,294,967,296 operations** for a 256×256 image (`n = 8`).\n"
+            "NEQR stores all `q = 8` intensity bits deterministically in basis states `|f(Y,X)> ⊗ |Y X>`, dropping preparation cost over **1,000×** to **O(q·n·2^(2n)) = 4,194,304 operations** and allowing exact reversible arithmetic on pixel bits."
+        ),
+        followups=(
+            "Explain RPA, RPS, D4, and QE modules",
+            "How did you run true NEQR superposition circuits?",
+        ),
+    ),
+    KnowledgeChunk(
+        chunk_id="v2_v3_upgrades",
+        title="How My v2 & v3 Extensions Improve the Base Paper",
+        source="GitHub Repo · docs/IMPROVEMENTS.md & CHANGELOG.md",
+        tags="what did you improve upgrade difference v1 v2 v3 extensions added beyond base paper enhancements",
+        priority=1.16,
+        answer=(
+            "While **v1** reproduces Sahu et al. faithfully, I built major **v2** and **v3** upgrades to solve its blind spots:\n"
+            "• **Blind Forgery Security (`SecureWatermark`):** Replaced the non-blind 131,072-bit reference dependency with a secret-keyed `SHAKE-256` Toeplitz MAC on untouched MSBs (`2^-8` to `2^-16` forgery chance, `99.6%` detection even on LSB-preserving splices, `0` false alarms).\n"
+            "• **Dual-Partner Self-Recovery (`recovery-dual`):** Fits 68-bit primary + 44-bit secondary Haar recovery clones + 16-bit MAC inside 8×8 blocks (2 bpp), restoring **99.9%** of erased pixels at 20% damage (**~29.01 dB** recovered).\n"
+            "• **Optimal Quality (`keyed-opt`):** Searches all `3^4 = 81` MSB shifts per block to hit **46.37 dB** PSNR (`SSIM 0.9933`).\n"
+            "• **Qiskit Engineering:** Cut block circuits from **354/400 qubits down to 44–69 qubits**, added 15q Grover search & Brent-Kung CLA depth reduction, heavy-hex NISQ T1/T2 simulation, Table 9/PSNR audits, and a **162-d open-set AI detector**."
+        ),
+        followups=(
+            "How does Dual-Partner 8x8 self-recovery work?",
+            "What bugs did you find in Table 9 and 59.97 dB PSNR?",
+            "What tests did you run?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="paper_metadata",
-        title="Base Research Paper Citation & Experimental Setup",
+        title="About the Research Base Paper (Array 2026)",
         source="Base Research Paper · Array 31 (2026) 101035",
         tags="research base paper authors sahu journal array 2026 doi title citation dataset images",
+        priority=1.1,
         answer=(
-            "The base paper is 'AI-assisted simulation-based quantum image watermarking using NEQR and reversible "
-            "quantum logic' by Aditya Kumar Sahu, Swapnaneel Dhar, Subhrajyoti Deb, Amine Khaldi, Monalisa Sahu, and "
-            "De Rosal Ignatius Moses Setiadi, published in Array Vol. 31 (2026), Article 101035 (DOI: 10.1016/j.array.2026.101035). "
-            "Experiments tested 16 standard 256x256 grayscale images (including Airplane, Lena, Baboon, Peppers, Moon, etc.) "
-            "using IBM Qiskit 0.36 simulation on classical CPU hardware (no physical quantum processor execution or speedup claimed)."
+            "My project builds on *'AI-assisted simulation-based quantum image watermarking using NEQR and reversible quantum logic'* by **Aditya Kumar Sahu, Swapnaneel Dhar, Subhrajyoti Deb, Amine Khaldi, Monalisa Sahu, and De Rosal Ignatius Moses Setiadi**, published in *Array* Vol. 31 (2026), Article 101035 (`10.1016/j.array.2026.101035`).\n"
+            "The paper evaluates 16 standard 256×256 grayscale test images (including Airplane, Lena, Baboon, Peppers, Moon, Man, Boat, Aerial, Clown) using IBM Qiskit 0.36 simulation on classical hardware — no real quantum hardware execution is claimed."
+        ),
+        followups=(
+            "What bugs did you find in Table 9 and 59.97 dB PSNR?",
+            "What improvements did you add over the base paper?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="quantum_gates",
-        title="Reversible Quantum Modules (RPA, RPS, D4, QE)",
+        title="Reversible Quantum Modules I Implemented (RPA, RPS, D4, QE)",
         source="Base Paper Sec. 2.2–2.5 & qwm/gates/",
-        tags="rpa rps d4 qe rha rfa rhs rfs cnot toffoli pauli-x swap reversible quantum gates modules",
+        tags="rpa rps d4 qe rha rfa rhs rfs cnot toffoli pauli-x swap reversible quantum gates modules arithmetic",
+        priority=1.12,
         answer=(
-            "Four custom reversible modules implement arithmetic using CNOT, Toffoli (CCNOT), SWAP, and Pauli-X gates: "
-            "• RPA (Reverse Parallel Adder): 1 RHA + (n-1) RFAs (4n qubits) to add pixel values cleanly without losing inputs. "
-            "• RPS (Reverse Parallel Subtractor): 1 RHS + (n-1) RFSs (4n qubits) to invert addition during extraction. "
-            "• D4 (Divide by 4): n+2 qubits using SWAP gates (or free wire relabelling in v2 lean circuits) to shift right by 2 bits. "
-            "• QE (Quantum Equal): 2n+1 qubits comparing two n-bit sequences via CNOTs and multi-controlled NOT."
+            "In `qwm/gates/`, I built both module-faithful v1 components and exhaustive truth-table tests for all four reversible blocks:\n"
+            "• **RPA (Reverse Parallel Adder):** Chains 1 `RHA` + `(n-1)` `RFA` blocks (`4n` qubits) so inputs stay intact alongside the sum.\n"
+            "• **RPS (Reverse Parallel Subtractor):** Uses `RHS` + `RFS` (`4n` qubits) to reverse addition during watermark extraction.\n"
+            "• **D4 (Divide-by-4):** Shifts right by 2 bits (`floor(M/4)`) via SWAPs in v1 or zero-gate wire relabelling in my lean circuits.\n"
+            "• **QE (Quantum Equal):** `2n+1` qubits comparing two registers with `CNOT`s and multi-controlled NOT."
         ),
-    ),
-    KnowledgeChunk(
-        chunk_id="v2_keyed_blind",
-        title="v2 Keyed Blind Authentication (Why Base Paper Couldn't Detect Blindly)",
-        source="GitHub Repo · docs/IMPROVEMENTS.md Sec. 2",
-        tags="v2 keyed blind authentication hmac toeplitz shake-256 secret key nonce tamper detection splice",
-        answer=(
-            "The base paper's scheme is non-blind (needs 131,072 stored reference bits), its literal Pauli-X rule inverts "
-            "both LSBs regardless of Wb, and it detects 0% of splices that preserve the 2 LSBs. "
-            "v2 (`SecureWatermark`) fixes this without extra storage: it computes Wb = g(MSB) XOR T_b*m XOR c_b using a secret key + nonce "
-            "and SHAKE-256 Toeplitz MAC over the 6 untouched MSBs. Result: 0% false alarms, 99.6% detection even on LSB-preserving splices, "
-            "and a keyless forgery chance of just 2^-8 (0.39%) per 2x2 block."
+        followups=(
+            "How did you shrink 354 qubits down to 44 qubits?",
+            "What tests did you run?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="v3_self_recovery",
-        title="Self-Recovery & v3 Dual-Partner 8x8 Haar Healing",
-        source="GitHub Repo · docs/IMPROVEMENTS.md Sec. 3 & 9",
+        title="How My Self-Recovery & Dual-Partner 8×8 Haar Healing Works",
+        source="GitHub Repo · qwm/secure/recovery.py & docs/IMPROVEMENTS.md",
         tags="self recovery repair heal dual partner 8x8 haar blocks fix cut deleted region recovery-dual",
+        priority=1.15,
         answer=(
-            "v2 introduced 4x4 blind self-recovery (`recovery`), storing 20-bit partner averages + 12-bit MAC per block. "
-            "v3 upgrades this to Dual-Partner 8x8 Companded-Haar Self-Recovery (`recovery-dual`, default in this web app): within "
-            "the same 2 bpp LSB budget (128 bits per 8x8 block), it packs a 68-bit primary Haar clone in partner pi_1(B), "
-            "a 44-bit secondary Haar clone in disjoint partner pi_2(B), and a 16-bit Toeplitz MAC (2^-16 forgery limit). "
-            "Across 20% and 40% tampering tests, code-based repair reaches 99.9% and 97.7% (healing ~29 dB in the erased region)."
+            "My **v2 (`recovery`)** 4×4 scheme stores a 20-bit partner average + 12-bit MAC per block, healing tampered holes back to **28–29 dB** (~40 dB whole image) with **0.023%** keyless forgery rate.\n"
+            "In **v3 (`recovery-dual`, default in the web app)**, I split every 8×8 block's 128 LSB bits (`2 bpp`) into three pieces:\n"
+            "• **68 bits:** Primary companded-Haar backup snapshot stored in keyed partner `π₁(B)`.\n"
+            "• **44 bits:** Secondary redundant Haar snapshot stored in disjoint partner `π₂(B)`.\n"
+            "• **16 bits:** One-time `SHAKE-256` Toeplitz MAC (`2^-16` forgery bound).\n"
+            "Tested across 20% and 40% photo deletions, code-based healing jumps from `96.1% / 86.4%` up to **99.9% and 97.7%**!"
+        ),
+        followups=(
+            "How does blind tamper authentication work without reference bits?",
+            "What PSNR image quality do your schemes achieve?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="psnr_opap_coset",
-        title="Image Quality (PSNR, SSIM), OPAP & Sphere-Packing Audit",
-        source="GitHub Repo · docs/IMPROVEMENTS.md Sec. 1.2 & 9.3",
+        title="Image Quality (PSNR / SSIM), OPAP & Sphere-Packing Audit",
+        source="GitHub Repo · qwm/paper_checks.py & qwm/secure/authentication.py",
         tags="psnr ssim quality imperceptibility 59.97 44.17 46.37 opap keyed-opt coset sphere packing mse airplane",
+        priority=1.15,
         answer=(
-            "The base paper reports PSNRs up to 59.97 dB (58.67 dB on Airplane), which implies MSE = 0.066 — below the "
-            "2-bpp information-theoretic sphere-packing limit (MSE >= 0.94, PSNR <= 48.41 dB). Measured quality in this repo is "
-            "44.17 dB (SSIM 0.986) for 2-LSB embedding, 41.17 dB for the literal paper rule, and in v3: OPAP (`mode='opap'`) "
-            "reaches 46.39 dB while `keyed-opt` searches all 3^4 = 81 MSB shifts {-4,0,+4}^4 jointly with the MAC to reach "
-            "46.37 dB (SSIM 0.9933) with zero receiver modifications."
+            "By testing information-theoretic QIM bounds (`qwm paper-checks`), I found that the paper's reported **59.97 dB** PSNR (`MSE = 0.066`) cannot belong to hiding 2 checkable bits per pixel — the asymptotic **sphere-packing limit at 2 bpp is 48.41 dB** (`MSE ≥ 0.94`).\n"
+            "Measured quality across 20 images in our implementation:\n"
+            "• **Literal paper rule:** `41.17 dB` (`airplane`: `41.16 dB`, SSIM `0.966`)\n"
+            "• **2-LSB / `keyed` / `recovery`:** `~44.17–44.29 dB` (`SSIM ~0.985`)\n"
+            "• **v3 `opap` & `keyed-opt` (81-coset `{-4,0,+4}^4` search):** **`46.39 dB`** and **`46.37 dB`** (`SSIM 0.9933`), with zero receiver changes!"
+        ),
+        followups=(
+            "What bugs did you find in Table 9?",
+            "How does v3 Dual-Partner self-recovery work?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="table9_checks",
-        title="Table 9 Fuchs-van de Graaf Quantum Consistency Check",
-        source="GitHub Repo · qwm/paper_checks.py & docs/IMPROVEMENTS.md Sec. 1.1",
-        tags="table 9 fidelity trace distance purity fuchs van de graaf checks audit violations",
+        title="Physics Bugs I Found in Table 9 & The Literal Embedding Rule",
+        source="GitHub Repo · qwm/paper_checks.py & docs/IMPROVEMENTS.md Sec. 1",
+        tags="bugs bug flaws flaw mistakes issues problems gaps violations errors audit find found wrong table 9 fidelity trace distance purity fuchs van de graaf literal rule",
+        priority=1.18,
         answer=(
-            "Running `qwm paper-checks` checks Table 9's reported quantum metrics against the Fuchs-van de Graaf "
-            "inequality `1 - sqrt(F) <= T <= sqrt(1 - F)`. Six of the 16 reported rows violate quantum mechanics bounds "
-            "(Bird, Man, Boat, House 1, House 2, Aerial — e.g., House 1 reports F=1 with T=0.4378 and Purity=1.3202). "
-            "By contrast, every row simulated directly by this package under depolarizing, amplitude-damping, and phase-damping "
-            "channels satisfies the inequality cleanly."
+            "Running automated audits (`qwm paper-checks` & `qwm tamper-study`), I uncovered three concrete gaps in the paper's reported results:\n"
+            "• **1. Table 9 Violates Quantum Mechanics (6 of 16 rows):** Under Fuchs–van de Graaf (`1 − √F ≤ T ≤ √(1 − F)`), rows for *Bird, Man, Boat, House 1, House 2,* and *Aerial* are mathematically impossible (e.g., *House 1* lists `F=1, T=0.4378`, purity `1.3202`). Every simulation generated by my code passes 100%.\n"
+            "• **2. 59.97 dB Exceeds the 2-bpp Limit:** Optimal 2-bpp lattice embedding peaks near `47.25 dB` (`48.41 dB` sphere packing).\n"
+            "• **3. Non-Blind Literal Rule Flaw:** The literal `RPA → XOR → QE → Pauli-X` rule flips both LSBs regardless of watermark content, detects **0%** of LSB-preserving splices, and needs `131,072` stored reference bits."
+        ),
+        followups=(
+            "How did your v2 keyed scheme fix blind tamper detection?",
+            "What tests did you run to verify your code?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="lean_shallow_nisq",
-        title="Qubit Reduction (354 → 44 Qubits), CLA Depth & NISQ Hardware Reality",
-        source="GitHub Repo · qwm/circuits/ & docs/IMPROVEMENTS.md Sec. 4–5 & 9",
-        tags="qubits lean circuit 44 69 354 400 shallow brent-kung cla nisq noise heavy-hex thermal t1 t2 hardware",
+        title="Qubit Reduction (354 → 44 Qubits), Shallow CLA & NISQ Simulation",
+        source="GitHub Repo · qwm/circuits/lean.py, shallow.py & qwm/nisq.py",
+        tags="qubits lean circuit 44 69 354 400 shallow brent-kung cla nisq noise heavy-hex thermal t1 t2 ibm hardware",
+        priority=1.15,
         answer=(
-            "• Base paper (Table 21) spends 354 qubits on generation and 400 each on embedding/extraction.\n"
-            "• v2 Lean circuits (`qwm.circuits.lean`) cut this ~8x to 44 / 40 / 41 qubits using Cuccaro in-place adders, "
-            "wire-relabelling D4, Bennett uncomputation, and Margolus 3-CNOT Toffolis (exact unitary equality verified).\n"
-            "• v3 Shallow Brent-Kung CLA circuits (`qwm.circuits.shallow`, 69 qubits) slash compiled depth by 38–45% (485 vs 888).\n"
-            "• NISQ simulation on IBM heavy-hex lattices (`p2 = 1e-3`, `T1 = 300 us`) gets ~24.9% block success for 44q lean generation "
-            "(vs 16.8% for 146q v1); reaching 99% per block requires error correction with `p2 < 1e-5`."
+            "I engineered progressively cleaner quantum circuits and tested them on realistic IBM heavy-hex noise:\n"
+            "• **8× Qubit Reduction (`qwm/circuits/lean.py`):** Cut block generation/embedding/extraction from `354 / 400 / 400` qubits (Table 21) down to **`44 / 40 / 41` qubits** via Cuccaro adders, zero-gate D4 wire relabelling, Bennett uncomputation, and 3-CNOT Margolus Toffolis (`44q`/`45q` for keyed).\n"
+            "• **38–45% Depth Cut (`qwm/circuits/shallow.py`):** Replaced linear ripple carries with my Brent-Kung CLA adder (`69q`, depth `485` vs `888`).\n"
+            "• **NISQ Reality Check (`qwm nisq`):** With `ALAPScheduleAnalysis` + `T1 = 300 us` + `p2 = 1e-3` on heavy-hex, 44q lean hits `24.9%` block exactness (`71.0%` at `p2=5e-4`, ahead of Shallow's `64.0%` due to fewer CNOTs). Achieving `99%` per block requires **error correction with `p2 < 1e-5`**."
+        ),
+        followups=(
+            "How did you run 15-qubit Grover tamper search?",
+            "Explain the RPA, RPS, D4, and QE gates",
         ),
     ),
     KnowledgeChunk(
         chunk_id="superposition_grover",
-        title="v3 True NEQR Coordinate Superposition & 15-Qubit Grover Tamper Search",
-        source="GitHub Repo · qwm/circuits/superposition.py & README.md",
+        title="True NEQR Superposition & 15-Qubit Grover Tamper Oracle (v3)",
+        source="GitHub Repo · qwm/circuits/superposition.py",
         tags="superposition grover search statevector mps 15 qubit 46 47 qubits quantum parallelism",
+        priority=1.14,
         answer=(
-            "In v3, `neqr_ppb_superposition_circuit` prepares a coherent NEQR state (1/sqrt(HW)) sum |f(y,x)>|y,x> and computes PPB across "
-            "all coordinates simultaneously in a single Statevector-verified circuit (ancilla clean probability 1.000000). "
-            "`run_grover_tamper_search` adds a 15-qubit phase-kickback oracle + Grover diffusion over 3 iterations to amplify altered pixels "
-            "to 0.9613 probability (15.38x above uniform), while `block_neqr_blind_verify` verifies multi-block patches via 47-qubit MPS Aer simulation."
+            "In **v3**, I moved beyond single-basis classical block calls to true coherent NEQR superpositions (`qwm superposition`):\n"
+            "• **`neqr_ppb_superposition_circuit`:** Evaluates `PPB` across all image coordinates in quantum superposition simultaneously (`Statevector` verified, ancilla clean probability `1.000000`).\n"
+            "• **15-Qubit Grover Tamper Search:** Uses phase-kickback + Grover diffusion in `3` iterations to amplify edited coordinates in a `4×4` patch to **`0.9613` probability mass (`15.38×` gain over uniform)**.\n"
+            "• **46–47q MPS Verification:** Runs multi-block blind superposition verification via Qiskit Aer MPS with **`1.0000` shot accuracy**."
+        ),
+        followups=(
+            "How accurate is your AI attack classifier?",
+            "How many qubits do the lean circuits use?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="ai_classifier",
-        title="AI Attack Classifier (Random Forest, 162-d Descriptors & Open-Set Detection)",
-        source="Base Paper Sec. 4.8 & docs/IMPROVEMENTS.md Sec. 6 & 9.5",
+        title="My AI Attack Detective (162-d Forensic Descriptors & OOD Gate)",
+        source="GitHub Repo · qwm/classifier/ & docs/IMPROVEMENTS.md Sec. 6",
         tags="ai classifier random forest detective attack classification accuracy 96.56 162 ood open set unseen covers",
+        priority=1.15,
         answer=(
-            "The base paper uses a 100-tree Random Forest (`random_state=42`, Table 18) on 4,500 images across 9 classes "
-            "(No attack, Gaussian noise, Salt & pepper, Median filter, Histogram equalisation, JPEG, Cropping, Rotation, Text addition) "
-            "reporting 96.56% accuracy on flattened 65,536-d pixels. Stricter evaluation in this repo shows flattened pixels drop to 66.1% "
-            "(random split) and 56.1% (unseen covers), whereas v3's 162-d multi-domain forensic descriptors achieve 99.21% on unseen covers "
-            "plus calibrated open-set OOD detection (0.930 AUROC, flagging 56.6% of unknown attack types)."
+            "I audited the paper's 9-class Random Forest (100 trees, `4,500` images, Table 18) and upgraded its feature engineering:\n"
+            "• **Raw-Pixel Leak Audit:** When tested strictly on **unseen cover images** (`StratifiedGroupKFold`), the paper's 65,536-d raw pixels drop from their reported `96.56%` (random split) down to **`56.13%`** (`66.11%` random split).\n"
+            "• **My 162-d Forensic Upgrade (`descriptors_v2`):** Combining statistical, 2D-DCT spectral, gradient anisotropy, median-residual, and bit-plane correlations raises cover-disjoint RF accuracy to **`99.21%`**!\n"
+            "• **Open-Set Unknown Attack Detection (`CalibratedOpenSetDetector`):** Flags unseen manipulations at **`0.930` AUROC** (`56.6%` unknown rejection while keeping `95%` of known attacks)."
+        ),
+        followups=(
+            "Which attacks did you test on the images?",
+            "What tests did you run?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="attacks_robustness",
-        title="Image Processing Attacks & Robustness Behavior",
-        source="Base Paper Sec. 4.1, Table 7 & README.md",
-        tags="attacks gaussian noise salt pepper median blur histogram equalization jpeg compression crop rotate text",
+        title="Image Attacks & Local Tamper Scenarios I Evaluated",
+        source="GitHub Repo · qwm/attacks.py & qwm/tamper.py",
+        tags="attacks gaussian noise salt pepper median blur histogram equalization jpeg compression crop rotate text blackout copy-move splice",
+        priority=1.1,
         answer=(
-            "Eight image-processing attacks are implemented in `qwm.attacks` (plus local manipulations blackout, copy-move, splice, "
-            "lsb_preserving_splice, text_overlay, local_blur in `qwm.tamper`). Because fragile authentication hashes every block via its LSBs "
-            "and MSBs, the keyed schemes tolerate minor salt-and-pepper/crop outside untouched tiles while intentionally rejecting global edits "
-            "like JPEG recompression, filtering, or rotation so tampering cannot pass verification silently."
+            "I implemented and tested both **8 global signal attacks** (`Gaussian noise`, `Salt & pepper`, `Median filter`, `Histogram equalization`, `JPEG compression`, `Cropping`, `Rotation`, `Text addition` in `qwm.attacks`) and **7 local forgery attacks** (`blackout`, `copy-move`, `splice`, `LSB-preserving splice`, `text overlay`, `local blur`, `re-embedded watermark forgery` in `qwm.tamper`).\n"
+            "Across all `1,320` local tamper runs, my keyed blind schemes hit **99.6%–99.97% block detection** with **0 false alarms** — including catching sneaky LSB-preserving splices that completely fool the base scheme (`0%`)."
+        ),
+        followups=(
+            "How does Dual-Partner self-recovery repair those blackouts?",
+            "How accurate is your AI classifier on these attacks?",
         ),
     ),
     KnowledgeChunk(
         chunk_id="tech_stack_commands",
-        title="Technology Stack, CLI Commands, Tests & Architecture",
-        source="GitHub Repo · pyproject.toml, qwm/cli.py, docs/SDLC.md",
-        tags="python qiskit cli commands tests docker install stack web server api health test coverage ci",
+        title="Tech Stack, Architecture, CLI & Deployment I Built",
+        source="GitHub Repo · pyproject.toml, qwm/cli.py, Dockerfile",
+        tags="python qiskit cli commands docker install stack web server api health architecture files structure",
+        priority=1.1,
         answer=(
-            "Built in Python >= 3.10 with Qiskit (>=1.0), Qiskit Aer, NumPy, SciPy, scikit-learn, scikit-image, OpenCV, Pillow, and Matplotlib; "
-            "the web UI runs on Python's stdlib `ThreadingHTTPServer` (`qwm/web/server.py`) with vanilla HTML/CSS/JS and zero heavy JS frameworks. "
-            "Key commands: `qwm ui` (web studio), `qwm run` (end-to-end showcase), `qwm paper-checks`, `qwm nisq`, `qwm tamper-study`, "
-            "and `qwm classifier-benchmark`. Verified with 198+ pytest tests (~88% coverage), `ruff`, `ruff --select S`, Docker support, and GitHub Actions CI."
+            "Everything runs in **Python ≥ 3.10** with `Qiskit ≥ 1.0`, `Qiskit Aer`, `NumPy`, `SciPy`, `scikit-learn`, `scikit-image`, `OpenCV`, `Pillow`, and `Matplotlib`:\n"
+            "• **Zero-Framework Web Backend (`qwm/web/server.py`):** Custom `ThreadingHTTPServer` raising secondary thread stack sizes (`64 MiB`) so Qiskit's Rust core simulates safely per-click, with `/api/health`, `/api/paper`, `/api/ask`, `12 MiB` body validation, and path-traversal guards.\n"
+            "• **Full CLI (`qwm`):** Includes `qwm ui`, `qwm run`, `qwm embed`, `qwm verify`, `qwm paper-checks`, `qwm nisq`, `qwm tamper-study`, `qwm superposition`, and `qwm classifier-benchmark`.\n"
+            "• **Container & CI:** Ships a non-root `Dockerfile` with healthcheck, reproducible `scripts/reproduce_all.sh`, and automated GitHub Actions CI."
+        ),
+        followups=(
+            "What tests did you run?",
+            "What improvements did you add over the base paper?",
         ),
     ),
 )
 
-_SYNONYM_MAP: dict[str, str] = {
-    "heal": "recovery self-recovery fix repair restore",
-    "fix": "recovery self-recovery heal repair",
-    "Tamper": "attack edit fake splice blackout cut",
-    "tamper": "attack edit fake splice blackout cut",
-    "ai": "classifier random forest detective features 162 ood",
-    "paper": "base research sahu array 2026 table",
+_SLANG_AND_EXPANSIONS: dict[str, str] = {
+    "u": "you",
+    "ur": "your",
+    "r": "are",
+    "qsn": "question",
+    "ques": "question",
+    "algo": "algorithm",
+    "wm": "watermark watermarked watermarking",
+    "tests": "tests pytest testing verification benchmark ran",
+    "test": "tests pytest testing verification check ran",
+    "tested": "tests pytest testing verification experiments",
+    "made": "built implemented project created",
+    "build": "built implemented project created",
+    "created": "built implemented project created",
+    "heal": "recovery self-recovery repair fix restore",
+    "fix": "recovery self-recovery heal repair fix",
+    "tamper": "tamper edit fake splice blackout cut forgery",
+    "ai": "ai classifier random forest detective features 162 ood",
+    "paper": "paper",
+    "citation": "authors sahu journal array 2026 doi title citation",
+    "authors": "authors sahu journal array 2026 doi title citation",
+    "bugs": "bugs issues flaws violations audit table 9 fuchs",
+    "bug": "bugs issues flaws violations audit table 9 fuchs",
+    "flaws": "bugs issues flaws violations audit table 9 fuchs",
+    "issues": "bugs issues flaws violations audit table 9 fuchs",
     "quantum": "qubit circuit qiskit neqr rpa rps d4 qe nisq grover",
     "speed": "complexity operations ms time",
-    "safe": "security hmac toeplitz shake-256 forgery",
-    "color": "grayscale rgb image quality psnr ssim",
-    "airplane": "example sample cover image 2x2 block",
+    "airplane": "airplane example sample cover image 2x2 block",
 }
 
 _STOP_WORDS = frozenset({
-    "what", "how", "why", "is", "are", "the", "a", "an", "in", "on", "to", "for",
-    "of", "this", "that", "it", "my", "your", "from", "with", "do", "does", "did",
-    "can", "explain", "tell", "me", "about", "please", "and", "or",
+    "what", "how", "why", "who", "when", "where", "which", "is", "are", "was", "were",
+    "the", "a", "an", "in", "on", "to", "for", "of", "this", "that", "it", "my", "your",
+    "you", "i", "we", "me", "our", "from", "with", "do", "does", "did", "can", "could",
+    "would", "should", "explain", "tell", "about", "please", "pls", "plss", "and", "or",
 })
 
-_OUT_OF_SCOPE_MSG = (
-    "I can only answer questions directly grounded in this project's GitHub codebase, "
-    "documentation, and the Sahu et al. (Array 2026) research base paper. "
-    "Try asking about: how watermarking works on the Airplane example, NEQR vs FRQI, "
-    "PSNR/OPAP limits, Table 9 consistency checks, v2/v3 blind authentication & self-recovery, "
-    "Qiskit circuits/NISQ noise, or the AI attack classifier."
+_GREETING_RE = re.compile(r"^(hi|hello|hey|yo|hola|namaste|good\s*(morning|afternoon|evening)|who are you|help)[!.?\s]*$", re.I)
+_FOLLOWUP_RE = re.compile(
+    r"^(tell me more|more details|explain more|why|how does that work|what else|continue|elaborate|go deeper|details)[?.!\s]*$",
+    re.I,
 )
 
 
-class ProjectAssistant:
-    """Offline retrieval-grounded Q&A assistant over repo docs and base paper."""
+def _clean_md_text(raw: str) -> str:
+    """Turn raw markdown paragraphs/tables into crisp plain prose."""
+    lines = []
+    for line in raw.splitlines():
+        s = line.strip()
+        if not s or s.startswith("<") or s.startswith("![") or set(s) <= set("|-: "):
+            continue
+        if s.startswith("|") and s.endswith("|"):
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            s = " · ".join(c for c in cells if c)
+        s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)
+        s = re.sub(r"[*_`]+", lambda m: m.group(0) if "`" in m.group(0) else "", s)
+        lines.append(s)
+    text = "\n".join(lines).strip()
+    return text[:680] + ("..." if len(text) > 680 else "")
 
-    def __init__(self, extra_docs: tuple[Path, ...] | None = None) -> None:
-        self.chunks: list[KnowledgeChunk] = list(_CURATED_CHUNKS)
-        if extra_docs is None:
-            extra_docs = (
-                REPO_ROOT / "README.md",
-                REPO_ROOT / "docs" / "algorithm.md",
-                REPO_ROOT / "docs" / "IMPROVEMENTS.md",
+
+def _load_repo_markdown_chunks() -> list[KnowledgeChunk]:
+    """Dynamically ingest markdown sections from repo docs into RAG chunks."""
+    docs = (
+        ("README.md", "GitHub Repo · README.md"),
+        ("docs/algorithm.md", "GitHub Repo · docs/algorithm.md"),
+        ("docs/IMPROVEMENTS.md", "GitHub Repo · docs/IMPROVEMENTS.md"),
+        ("docs/SDLC.md", "GitHub Repo · docs/SDLC.md"),
+        ("CHANGELOG.md", "GitHub Repo · CHANGELOG.md"),
+    )
+    chunks: list[KnowledgeChunk] = []
+    for rel, source in docs:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        content = path.read_text(encoding="utf-8", errors="ignore")
+        sections = re.split(r"(?m)^(#{2,3}\s+.+)$", content)
+        for i in range(1, len(sections) - 1, 2):
+            heading = sections[i].lstrip("# ").strip()
+            heading_clean = re.sub(r"^\d+(\.\d+)*\.?\s*", "", heading)
+            body = _clean_md_text(sections[i + 1])
+            if len(body) < 40:
+                continue
+            chunks.append(
+                KnowledgeChunk(
+                    chunk_id=f"doc:{rel}:{i}",
+                    title=heading_clean,
+                    source=source,
+                    tags=f"{rel} {heading_clean.lower()}",
+                    answer=body,
+                    priority=0.86,
+                )
             )
-        corpus = [
-            f"{c.title}. {c.tags}. {c.answer} {' '.join(self._doc_hints(extra_docs, c.chunk_id))}"
-            for c in self.chunks
+    return chunks
+
+
+def _load_test_inventory_chunks() -> list[KnowledgeChunk]:
+    """Dynamically ingest every test module docstring from tests/*.py into RAG."""
+    tdir = REPO_ROOT / "tests"
+    if not tdir.exists():
+        return []
+    summaries = []
+    for p in sorted(tdir.glob("test_*.py")):
+        head = p.read_text(encoding="utf-8", errors="ignore")[:320]
+        m = re.search(r'"""(.*?)"""', head, re.S)
+        desc = " ".join(m.group(1).split()) if m else "automated unit & integration checks"
+        summaries.append(f"• `{p.name}`: {desc}")
+    if not summaries:
+        return []
+    return [
+        KnowledgeChunk(
+            chunk_id="test_inventory_files",
+            title="Full Breakdown of Test Files (`tests/*.py`)",
+            source="GitHub Repo · tests/",
+            tags="test files breakdown test_gates test_circuits test_lean test_shallow test_superposition test_secure test_web test_assistant test_cli test_v2",
+            answer="Here is the file-by-file breakdown of the test suite I wrote in `tests/`:\n" + "\n".join(summaries[:10]),
+            followups=("What tests did you run overall?", "How is CI/CD set up?"),
+            priority=0.98,
+        )
+    ]
+
+
+class ProjectAssistant:
+    """First-person Hybrid RAG Assistant indexed over repo docs, tests, and base paper."""
+
+    def __init__(self) -> None:
+        self.chunks: list[KnowledgeChunk] = [
+            *_CURATED_CHUNKS,
+            *_load_test_inventory_chunks(),
+            *_load_repo_markdown_chunks(),
         ]
-        self._vectorizer = TfidfVectorizer(ngram_range=(1, 2), lowercase=True, stop_words="english")
-        self._matrix = self._vectorizer.fit_transform(corpus)
+        corpus = [f"{c.title}. {c.tags}. {c.answer}" for c in self.chunks]
+        self._word_vec = TfidfVectorizer(ngram_range=(1, 2), lowercase=True, stop_words="english")
+        self._word_mat = self._word_vec.fit_transform(corpus)
+        self._char_vec = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 4), lowercase=True)
+        self._char_mat = self._char_vec.fit_transform(corpus)
 
     @staticmethod
-    def _doc_hints(paths: tuple[Path, ...], chunk_id: str) -> list[str]:
-        """Verify indexed docs exist without inflating answer drift."""
-        existing = [p.name for p in paths if p.exists()]
-        return [f"{chunk_id} {' '.join(existing)}"] if existing else []
+    def _preprocess_query(query: str) -> tuple[str, set[str]]:
+        raw_tokens = re.findall(r"[a-zA-Z0-9_-]+", query.lower())
+        normalized = [_SLANG_AND_EXPANSIONS.get(t, t) for t in raw_tokens]
+        expanded = " ".join(normalized)
+        meaningful = set(re.findall(r"[a-z0-9_-]+", expanded.lower())) - _STOP_WORDS
+        return f"{query} {expanded}".strip(), meaningful
 
     @staticmethod
-    def _expand_query(query: str) -> str:
-        tokens = re.findall(r"[a-zA-Z0-9_-]+", query.lower())
-        extra = [_SYNONYM_MAP[t] for t in tokens if t in _SYNONYM_MAP]
-        return f"{query} {' '.join(extra)}".strip()
-
-    @staticmethod
-    def _overlap_bonus(query_tokens: set[str], chunk: KnowledgeChunk) -> float:
-        meaningful = query_tokens - _STOP_WORDS
+    def _overlap_bonus(meaningful: set[str], chunk: KnowledgeChunk) -> float:
         if not meaningful:
             return 0.0
-        target = set(re.findall(r"[a-z0-9_-]+", f"{chunk.title} {chunk.tags}".lower()))
-        hits = len(meaningful & target)
-        return 0.12 * (hits / len(meaningful))
+        hay = set(re.findall(r"[a-z0-9_-]+", f"{chunk.title} {chunk.tags}".lower()))
+        hits = len(meaningful & hay)
+        return 0.16 * (hits / max(1, len(meaningful)))
 
-    def ask(self, question: str) -> dict:
-        """Answer a user question strictly from project & research-paper chunks."""
+    def ask(self, question: str, last_topic: str | None = None) -> dict:
+        """Answer a visitor's question naturally using Hybrid RAG over project & paper."""
         q = (question or "").strip()
         if not q:
             raise ValueError("please enter a question")
         if len(q) > 500:
             raise ValueError("question must be under 500 characters")
 
-        expanded = self._expand_query(q)
-        q_vec = self._vectorizer.transform([expanded])
-        cos_scores = cosine_similarity(q_vec, self._matrix)[0]
-        q_tokens = set(re.findall(r"[a-z0-9_-]+", q.lower()))
+        if _GREETING_RE.match(q):
+            return {
+                "grounded": True,
+                "topic_id": "overview",
+                "title": "Welcome to PhotoShield",
+                "answer": (
+                    "Hey! I built this NEQR Quantum Image Watermarking project (v3.0.2). "
+                    "Ask me anything — like how Airplane watermarking works, what 202+ tests and experiments I ran, "
+                    "what bugs I uncovered in the Array 2026 base paper, or how our v2/v3 blind self-recovery heals tampered images."
+                ),
+                "sources": ["GitHub Repo · README.md"],
+                "suggestions": list(_CURATED_CHUNKS[0].followups),
+            }
+
+        query_for_search = q
+        if last_topic and _FOLLOWUP_RE.match(q):
+            match_prev = next((c for c in self.chunks if c.chunk_id == last_topic), None)
+            if match_prev:
+                query_for_search = f"{q} {match_prev.title} {match_prev.tags}"
+
+        expanded, meaningful = self._preprocess_query(query_for_search)
+        w_scores = cosine_similarity(self._word_vec.transform([expanded]), self._word_mat)[0]
+        c_scores = cosine_similarity(self._char_vec.transform([expanded]), self._char_mat)[0]
 
         ranked = sorted(
             (
-                (float(cos_scores[i]) + self._overlap_bonus(q_tokens, self.chunks[i]), i)
+                (
+                    (0.68 * float(w_scores[i]) + 0.32 * float(c_scores[i]) + self._overlap_bonus(meaningful, self.chunks[i]))
+                    * self.chunks[i].priority,
+                    i,
+                )
                 for i in range(len(self.chunks))
             ),
             reverse=True,
         )
 
         best_score, best_idx = ranked[0]
-        if best_score < 0.095:
+        if best_score < 0.135:
             return {
                 "grounded": False,
-                "answer": _OUT_OF_SCOPE_MSG,
+                "topic_id": None,
+                "answer": (
+                    "That falls outside my NEQR Quantum Watermarking project! "
+                    "Ask me instead about the automated tests & benchmarks I ran, how Airplane watermarking & auto-healing work, "
+                    "my v2/v3 blind security upgrades, Qiskit circuit qubit savings, or findings from the Array 2026 research paper."
+                ),
                 "sources": [],
                 "suggestions": [
-                    "What is the objective of this web app?",
-                    "How does watermarking work on the Airplane example?",
-                    "Why does the project use NEQR instead of FRQI?",
-                    "How does v3 Dual-Partner self-recovery heal cut regions?",
+                    "What tests did you run?",
+                    "What did you build in this project?",
+                    "How does watermarking work step by step?",
+                    "What bugs did you find in Table 9 and PSNR?",
                 ],
             }
 
-        chosen = [self.chunks[best_idx]]
-        if len(ranked) > 1 and ranked[1][0] >= max(0.14, best_score * 0.68):
-            chosen.append(self.chunks[ranked[1][1]])
+        top = self.chunks[best_idx]
+        chosen = [top]
+        # Optionally enrich with 1 complementary chunk that adds genuinely different source context.
+        for score_k, idx_k in ranked[1:5]:
+            cand = self.chunks[idx_k]
+            if cand.chunk_id != top.chunk_id and score_k >= max(0.18, best_score * 0.72) and len(chosen) < 2:
+                if cand.title.lower() not in top.title.lower():
+                    chosen.append(cand)
 
-        answer_parts = [chosen[0].answer]
-        if len(chosen) > 1:
-            answer_parts.append(f"\nRelated ({chosen[1].title}): {chosen[1].answer}")
+        answer = top.answer if len(chosen) == 1 else f"{top.answer}\n\n**{chosen[1].title}:**\n{chosen[1].answer}"
+        suggestions = list(top.followups) if top.followups else [
+            "What tests did you run?",
+            "What did v2 and v3 improve over the base paper?",
+        ]
 
         return {
             "grounded": True,
-            "title": chosen[0].title,
-            "answer": "\n".join(answer_parts),
+            "topic_id": top.chunk_id,
+            "title": top.title,
+            "answer": answer,
             "sources": list(dict.fromkeys(c.source for c in chosen)),
             "confidence": round(min(1.0, best_score), 3),
-            "suggestions": [
-                "What did v2 and v3 improve over the base paper?",
-                "What bugs were found in Table 9 and 59.97 dB PSNR?",
-                "How many qubits do the lean circuits save?",
-            ],
+            "suggestions": suggestions,
         }

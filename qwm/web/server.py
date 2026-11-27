@@ -527,7 +527,7 @@ class DemoApp:
         }
 
     def ask(self, req: dict) -> dict:
-        return self.assistant.ask(str(req.get("question") or ""))
+        return self.assistant.ask(str(req.get("question") or ""), req.get("last_topic"))
 
 
 # --------------------------------------------------------------------------- #

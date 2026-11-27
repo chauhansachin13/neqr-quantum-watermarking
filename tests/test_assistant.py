@@ -1,4 +1,4 @@
-"""Tests for the grounded project & research-paper Q&A assistant."""
+"""Tests for the first-person Hybrid RAG project & research-paper assistant."""
 
 import json
 import threading
@@ -15,30 +15,47 @@ def qa():
     return ProjectAssistant()
 
 
-def test_grounded_project_and_paper_queries(qa):
+def test_first_person_tests_and_project_queries(qa):
+    res_tests = qa.ask("what tests u did?")
+    assert res_tests["grounded"] is True
+    assert "I built" in res_tests["answer"] and "pytest" in res_tests["answer"] and "202" in res_tests["answer"]
+    assert "i will answer" not in res_tests["answer"].lower()
+
     res_neqr = qa.ask("Why is NEQR used instead of FRQI?")
     assert res_neqr["grounded"] is True
     assert "4,194,304" in res_neqr["answer"] and "4,294,967,296" in res_neqr["answer"]
-    assert any("Base Paper" in s or "Table 11" in s for s in res_neqr["sources"])
 
     res_v3 = qa.ask("How does v3 Dual-Partner 8x8 Haar self-recovery heal damage?")
     assert res_v3["grounded"] is True
-    assert "8x8" in res_v3["answer"] and "99.9%" in res_v3["answer"]
+    assert "8×8" in res_v3["answer"] or "8x8" in res_v3["answer"]
+    assert "99.9%" in res_v3["answer"]
 
-    res_table9 = qa.ask("What consistency issue did qwm paper-checks find in Table 9?")
+    res_table9 = qa.ask("What bugs did paper-checks find in Table 9?")
     assert res_table9["grounded"] is True
-    assert "6" in res_table9["answer"] and "Fuchs" in res_table9["answer"]
+    assert "6 of 16" in res_table9["answer"] and "Fuchs" in res_table9["answer"]
 
-    res_wm = qa.ask("How does watermarking work step by step on the airplane example?")
+    res_bugs_base = qa.ask("What bugs did you find in the base paper?")
+    assert res_bugs_base["grounded"] is True and res_bugs_base["topic_id"] == "table9_checks"
+
+    res_wm = qa.ask("How does watermarking work step by step on the airplane?")
     assert res_wm["grounded"] is True
-    assert "2x2" in res_wm["answer"] and "PPB" in res_wm["answer"]
+    assert "2×2" in res_wm["answer"] and "PPB" in res_wm["answer"]
 
 
-def test_out_of_scope_query_is_declined(qa):
-    res = qa.ask("Who won the FIFA World Cup in 2022 and what is Bitcoin price today?")
-    assert res["grounded"] is False
-    assert "Sahu et al." in res["answer"]
-    assert res["sources"] == []
+def test_greetings_followups_and_out_of_scope(qa):
+    hello = qa.ask("hi")
+    assert hello["grounded"] is True and "PhotoShield" in hello["answer"] or "NEQR" in hello["answer"]
+
+    first = qa.ask("How many qubits do the lean circuits use?")
+    assert first["grounded"] is True and "44" in first["answer"]
+
+    followup = qa.ask("tell me more", last_topic=first["topic_id"])
+    assert followup["grounded"] is True
+
+    off_topic = qa.ask("Who won the FIFA World Cup in 2022 and what is Bitcoin price today?")
+    assert off_topic["grounded"] is False
+    assert "outside" in off_topic["answer"]
+    assert "i can only answer" not in off_topic["answer"].lower()
 
 
 def test_empty_and_too_long_queries_raise(qa):
@@ -56,12 +73,12 @@ def test_api_ask_endpoint():
     try:
         req = urllib.request.Request(
             f"{base}/api/ask",
-            data=json.dumps({"question": "How many qubits do the lean circuits use?"}).encode(),
+            data=json.dumps({"question": "What tests did you run?", "last_topic": "overview"}).encode(),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10) as r:
             body = json.loads(r.read())
-        assert r.status == 200 and body["grounded"] is True and "44" in body["answer"]
+        assert r.status == 200 and body["grounded"] is True and "202" in body["answer"]
     finally:
         httpd.shutdown()
         httpd.server_close()

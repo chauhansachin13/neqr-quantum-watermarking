@@ -390,39 +390,39 @@
 
       <!-- AT LAST SIDE: PROJECT & RESEARCH PAPER AI ASSISTANT + BASE PAPER CARD -->
       <section class="bottom-dock reveal" id="bottom-dock">
-        <!-- Grounded AI Assistant -->
+        <!-- Project & Research Paper RAG Assistant -->
         <div class="card assistant-card" id="assistant-sec">
           <div class="card-head tight">
             <div>
               <span class="eyebrow">Project &amp; Paper AI Assistant</span>
-              <h2>Ask anything about this project or research paper</h2>
-              <p class="sub">Answers strictly from this GitHub repository&rsquo;s code, docs, and the Sahu et al. (Array 2026) research paper &mdash; nothing guessed.</p>
+              <h2>Ask anything about what I built &amp; the research paper</h2>
+              <p class="sub">Powered by local RAG over my GitHub codebase, 202+ test suite, benchmarks, and Sahu et al. (Array 2026).</p>
             </div>
           </div>
 
           <div class="qa-chips" id="ask-chips">
-            <button type="button" class="qa-chip" data-q="What is the objective of this project?">What does this project do?</button>
+            <button type="button" class="qa-chip" data-q="What tests did you run?">What tests did you run?</button>
+            <button type="button" class="qa-chip" data-q="What improvements did you build in v2 and v3 over the base paper?">What did you build &amp; improve?</button>
             <button type="button" class="qa-chip" data-q="How does watermarking work step by step on the Airplane example?">How does watermarking work?</button>
-            <button type="button" class="qa-chip" data-q="Why does this project use NEQR instead of FRQI?">Why NEQR instead of FRQI?</button>
-            <button type="button" class="qa-chip" data-q="What bugs were found in Table 9 and 59.97 dB PSNR?">Table 9 &amp; 59.97 dB check?</button>
-            <button type="button" class="qa-chip" data-q="What did v2 and v3 improve over the base paper?">What did v2 &amp; v3 improve?</button>
-            <button type="button" class="qa-chip" data-q="How many qubits do lean circuits use and can it run on real NISQ hardware?">Qubits &amp; NISQ hardware?</button>
+            <button type="button" class="qa-chip" data-q="Why did you use NEQR instead of FRQI?">Why NEQR over FRQI?</button>
+            <button type="button" class="qa-chip" data-q="What bugs did you find in Table 9 and 59.97 dB PSNR?">Bugs found in Table 9 &amp; PSNR?</button>
+            <button type="button" class="qa-chip" data-q="How accurate is your AI attack classifier?">How accurate is the AI classifier?</button>
           </div>
 
           <div class="qa-thread" id="ask-messages" aria-live="polite">
             <div class="qa-msg bot">
               <div class="qa-bubble">
-                <strong>Project AI Assistant</strong>
-                <p>Hi! Ask me anything about this NEQR Quantum Watermarking codebase, its v1/v2/v3 algorithms, circuit qubit counts, AI classifier, or results from the research base paper.</p>
+                <span class="qa-bubble-title">PhotoShield Assistant</span>
+                <p>Hey! Ask me anything about this NEQR Quantum Watermarking project — what 202+ tests and experiments I ran, how Airplane watermarking &amp; self-healing work, our v2/v3 security upgrades, or the Array 2026 research paper.</p>
                 <div class="qa-sources">
-                  <span class="src-tag">Grounded in GitHub Repo + Array 2026 Paper</span>
+                  <span class="src-tag">RAG Index: GitHub Repo · Tests · Array 2026 Paper</span>
                 </div>
               </div>
             </div>
           </div>
 
           <form class="qa-form" id="ask-form">
-            <input type="text" id="ask-input" placeholder="Ask about NEQR, Airplane steps, PSNR, qubits, v3 self-recovery, classifier..." maxlength="500" autocomplete="off" required>
+            <input type="text" id="ask-input" placeholder="Ask e.g. What tests did you run? or How did you cut qubits from 354 to 44?" maxlength="500" autocomplete="off" required>
             <button class="btn-primary" id="ask-submit" type="submit">Ask AI &rarr;</button>
           </form>
         </div>

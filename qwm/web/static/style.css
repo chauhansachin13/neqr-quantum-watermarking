@@ -642,8 +642,11 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none !important; }
   color: var(--accent-ink);
   border-color: var(--accent);
 }
-.qa-bubble strong { display: block; font-size: 12px; margin-bottom: 4px; opacity: 0.85; }
-.qa-bubble p { margin: 0; white-space: pre-line; }
+.qa-bubble-title { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: var(--gold-ink); }
+.qa-bubble p { margin: 0 0 6px; white-space: pre-line; }
+.qa-bubble p:last-child { margin-bottom: 0; }
+.qa-bubble ul.qa-list { margin: 4px 0 6px; padding-left: 18px; display: grid; gap: 4px; }
+.qa-bubble code { font: 600 11.5px var(--mono); background: var(--surface-alt); padding: 1px 5px; border-radius: 5px; }
 .qa-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .src-tag {
   font: 600 10.5px var(--mono);
@@ -652,6 +655,19 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none !important; }
   background: var(--surface-alt);
   color: var(--ink-2);
 }
+.qa-followups { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.qa-followup-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.14s;
+}
+.qa-followup-btn:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .typing-dots { display: inline-flex; gap: 4px; padding: 4px 0; }
 .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); animation: typingBounce 1s infinite; }
 .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
