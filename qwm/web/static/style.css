@@ -261,9 +261,10 @@ button, input, select { font: inherit; }
   transition: transform .15s, border-color .15s;
 }
 .sample-dot:first-child { margin-left: 0; }
+.sample-dot[data-sample="airplane"] { background: #332920; }
 .sample-dot[data-sample="peppers"] { background: #3b2d22; }
-.sample-dot[data-sample="camera"] { background: #262523; }
 .sample-dot[data-sample="moon"] { background: #1e2228; }
+:focus:not(:focus-visible) { outline: none; }
 .sample-dot.active { border-color: var(--cream); box-shadow: 0 0 0 2px rgba(242, 236, 223, .4); z-index: 2; }
 .sample-dot:hover, .cream-plus:hover { transform: translateY(-2px); z-index: 3; }
 .cream-plus {

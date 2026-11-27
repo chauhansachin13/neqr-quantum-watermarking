@@ -258,7 +258,7 @@ def cmd_run(args) -> int:
     """Single-command guided tour of the paper + v2/v3 extensions."""
     import pandas as pd
 
-    from qwm.data import load_image
+    from qwm.data import DATA_DIR, load_image
     from qwm.metrics.image import quality_report
     from qwm.paper_checks import check_table9
     from qwm.resources import measure_all_families
@@ -270,7 +270,8 @@ def cmd_run(args) -> int:
     from qwm.tamper import apply_manipulation
     from qwm.watermark import embed_image
 
-    image_name = (getattr(args, "image_opt", None) or getattr(args, "image", None) or "camera").strip() or "camera"
+    default_img = "airplane" if (DATA_DIR / "airplane.png").exists() else "rocket"
+    image_name = (getattr(args, "image_opt", None) or getattr(args, "image", None) or default_img).strip() or default_img
 
     print("=== 1/4 Worked Block (Sec. 3 / Fig. 6, 12, 13, 14) ===")
     cmd_demo(argparse.Namespace(block="[[50,60],[48,32]]"))
@@ -434,7 +435,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     s = sub.add_parser("run", help="one-command complete showcase of paper reproduction + v2/v3 enhancements")
-    s.add_argument("image", nargs="?", default=None, help="test image (default: camera, works offline)")
+    s.add_argument("image", nargs="?", default=None, help="test image (default: airplane when cached, else rocket)")
     s.add_argument("--image", dest="image_opt", default=None, help="test image name or path")
     s.add_argument("--size", type=int, default=128)
     s.set_defaults(func=cmd_run)

@@ -206,8 +206,14 @@ class DemoApp:
             cover = resize(from_data_url(req["upload"]), SIZE)
             source = "upload"
         else:
-            source = str(req.get("image") or "camera")
-            cover = load_image(source, SIZE)
+            source = str(req.get("image") or "airplane")
+            try:
+                cover = load_image(source, SIZE)
+            except Exception:
+                if req.get("image"):
+                    raise
+                source = "rocket"
+                cover = load_image(source, SIZE)
         key, nonce = str(req.get("key") or "demo-key"), str(req.get("nonce") or source)
         t0 = time.perf_counter()
         ref = None

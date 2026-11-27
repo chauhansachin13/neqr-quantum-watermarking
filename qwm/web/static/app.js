@@ -83,7 +83,14 @@ async function init() {
     state.meta = meta;
     const sel = $("image");
     for (const name of meta.images) sel.add(new Option(name, name));
-    sel.value = meta.images.includes("peppers") ? "peppers" : meta.images[0];
+    sel.value = meta.images.includes("airplane")
+      ? "airplane"
+      : meta.images.includes("rocket")
+        ? "rocket"
+        : meta.images.includes("peppers")
+          ? "peppers"
+          : meta.images[0];
+    document.querySelectorAll(".sample-dot").forEach((b) => b.classList.toggle("active", b.dataset.sample === sel.value));
     for (const e of meta.local_edits) $("local-name").add(new Option(e.label, e.name));
     $("local-name").value = "lsb_preserving_splice";
     for (const a of meta.attacks) $("global-name").add(new Option(a.label, a.name));

@@ -57,6 +57,8 @@ def test_meta(server):
     status, body = _get(base + "/api/meta")
     meta = json.loads(body)
     assert status == 200 and "camera" in meta["images"] and {"paper", "lsb", "opap", "keyed", "keyed-opt", "recovery", "recovery-dual"}.issubset(meta["modes"])
+    status_def, emb_def = _post(base + "/api/embed", {"mode": "recovery-dual"})
+    assert status_def == 200 and emb_def["nonce"] in ("airplane", "rocket")
 
 
 @pytest.mark.parametrize("mode", ["keyed", "recovery", "lsb", "paper"])

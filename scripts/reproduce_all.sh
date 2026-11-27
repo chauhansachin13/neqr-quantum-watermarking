@@ -13,7 +13,9 @@ if [[ -n "$IMAGES" ]]; then EXTRA=(--images "$IMAGES"); fi
 if [[ "${OFFLINE:-0}" == "1" ]]; then EXTRA+=(--offline); fi
 
 FIRST_IMAGE=${IMAGES%%,*}
-echo "== one-command overview";         qwm run --image "${FIRST_IMAGE:-camera}"
+RUN_ARG=()
+if [[ -n "$FIRST_IMAGE" ]]; then RUN_ARG=(--image "$FIRST_IMAGE"); fi
+echo "== one-command overview";         qwm run "${RUN_ARG[@]}"
 echo "== worked example";               qwm demo
 echo "== circuit figures";              qwm draw --out "$OUT/figures"
 echo "== resource analysis";            qwm resources --out "$OUT"
