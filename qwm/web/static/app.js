@@ -312,7 +312,11 @@ async function verify() {
     $("tile4-title").innerHTML = ok ? "Real &amp;<br>Safe" : "Edit<br>Caught";
     $("tile4-sub").textContent = ok ? "0 tampered spots" : `${r.blocks_failed} altered spots highlighted`;
   }
-  $("verify-note").textContent = r.note || "";
+  $("verify-note").textContent = ok
+    ? "No edits detected anywhere in this photo."
+    : r.recovered
+      ? `Rebuilt ${fmt(100 * r.restored_fraction, 0)}% of the damaged area using hidden backup copies elsewhere in your photo.`
+      : (r.note || "");
 }
 
 async function classify() {
@@ -482,6 +486,7 @@ function setupNav() {
   if ($("inside-next")) $("inside-next").addEventListener("click", () => window.InsideSim && window.InsideSim.next());
   if ($("inside-replay")) $("inside-replay").addEventListener("click", () => window.InsideSim && window.InsideSim.replay());
   if ($("inside-speed")) $("inside-speed").addEventListener("click", () => window.InsideSim && window.InsideSim.cycleSpeed());
+  if ($("inside-labels")) $("inside-labels").addEventListener("click", () => window.InsideSim && window.InsideSim.togglePaperLabels());
   if ($("inside-scrub")) {
     $("inside-scrub").addEventListener("click", (e) => {
       const r = $("inside-scrub").getBoundingClientRect();

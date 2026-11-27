@@ -167,6 +167,31 @@ button, input, select { font: inherit; }
   color: #ffffff;
 }
 .hero-copy h1 .dim { color: var(--champagne); font-weight: 300; }
+.what-box {
+  margin: 16px 0 22px;
+  padding: 13px 16px;
+  border-left: 2px solid var(--champagne);
+  background: rgba(11, 10, 8, 0.42);
+  backdrop-filter: blur(6px);
+  max-width: 560px;
+}
+.what-box strong {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--champagne);
+  margin-bottom: 6px;
+}
+.what-box ul {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, .90);
+}
+.what-box li b { color: #ffffff; font-weight: 600; }
 .hero-sub {
   margin: 18px 0 24px;
   font-size: clamp(15px, 1.4vw, 18px);
