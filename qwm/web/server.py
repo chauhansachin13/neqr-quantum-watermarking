@@ -15,6 +15,7 @@ Endpoints (POST bodies and responses are JSON, images are PNG data URLs):
 * ``POST /api/classify``  ``{session}`` -> attack-class probabilities
 * ``POST /api/block``     ``{session, row, col}`` -> the 2x2 block through every circuit
 * ``GET  /api/resources`` circuit resource table
+* ``POST /api/ask``       ``{question}`` -> grounded answer from project docs & base paper
 """
 
 from __future__ import annotations
@@ -98,9 +99,12 @@ def overlay(img: np.ndarray, tamper: np.ndarray, block: int) -> np.ndarray:
 # --------------------------------------------------------------------------- #
 class DemoApp:
     def __init__(self, prepare_classifier: bool = True) -> None:
+        from qwm.assistant import ProjectAssistant
+
         self.started_at = time.monotonic()
         self.sessions: OrderedDict[str, dict] = OrderedDict()
         self.lock = threading.Lock()
+        self.assistant = ProjectAssistant()
         self.classifier = None
         self.classifier_features = "descriptors_v2"
         self.ood_threshold = 0.50
@@ -522,6 +526,9 @@ class DemoApp:
             "complexity": complexity_comparison(),
         }
 
+    def ask(self, req: dict) -> dict:
+        return self.assistant.ask(str(req.get("question") or ""))
+
 
 # --------------------------------------------------------------------------- #
 # HTTP layer
@@ -597,6 +604,7 @@ def make_handler(app: DemoApp):
                 "/api/classify": app.classify,
                 "/api/block": app.block,
                 "/api/nisq_block": app.nisq_block,
+                "/api/ask": app.ask,
             }
             fn = routes.get(self.path)
             if fn is None:

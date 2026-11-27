@@ -1,8 +1,19 @@
 "use strict";
-// Beginner-first interactive controller for PhotoShield (NEQR Quantum Watermarking).
+// Interactive controller for PhotoShield (animations, Airplane simulation & Grounded AI Q&A).
 
 const $ = (id) => document.getElementById(id);
-const state = { session: null, mode: "recovery-dual", meta: null, paintValue: 255, imageSize: 256, blockRow: 0, blockCol: 0 };
+const state = {
+  session: null,
+  mode: "recovery-dual",
+  meta: null,
+  paintValue: 255,
+  imageSize: 256,
+  blockRow: 0,
+  blockCol: 0,
+  airplaneCover: "",
+  airplaneWm: "",
+  airplaneBlock: null,
+};
 
 const MODE_INFO = {
   "recovery-dual": { title: "Auto-Heal (Best)", tag: "best", text: "Catches fake edits + heals damaged parts" },
@@ -61,6 +72,70 @@ async function busy(button, fn) {
 
 const fmt = (v, d = 2) => (v === null || v === undefined ? "-" : !isFinite(v) ? "inf" : Number(v).toFixed(d));
 const chip = (label, value) => `<span class="chip"><b>${value}</b>${label}</span>`;
+
+function pulseScan(photoWrapParentId) {
+  const wrap = $(photoWrapParentId) && $(photoWrapParentId).querySelector(".photo-wrap");
+  if (!wrap) return;
+  wrap.classList.remove("is-scanning");
+  void wrap.offsetWidth;
+  wrap.classList.add("is-scanning");
+}
+
+function markStepDone(stepNumber) {
+  document.querySelectorAll(".flow-node").forEach((el) => {
+    const n = Number(el.dataset.step);
+    el.classList.toggle("done", n < stepNumber);
+    el.classList.toggle("active", n === stepNumber);
+  });
+}
+
+function setupScrollReveals() {
+  const els = document.querySelectorAll(".reveal");
+  if (!("IntersectionObserver" in window)) {
+    els.forEach((e) => e.classList.add("visible"));
+    return;
+  }
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((ent) => {
+        if (ent.isIntersecting) {
+          ent.target.classList.add("visible");
+          ent.target.classList.remove("pre-reveal");
+          io.unobserve(ent.target);
+        }
+      });
+    },
+    { threshold: 0.08 }
+  );
+  els.forEach((el) => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top > window.innerHeight * 0.95) el.classList.add("pre-reveal");
+    else el.classList.add("visible");
+    io.observe(el);
+  });
+}
+
+function setupHeroWipe() {
+  const slider = $("hero-wipe");
+  const clip = $("hero-wipe-clip");
+  const divider = $("hero-wipe-divider");
+  const stage = $("hero-wipe-stage");
+  if (!slider || !clip || !divider) return;
+  const apply = (pct) => {
+    const clamped = Math.max(0, Math.min(100, pct));
+    clip.style.clipPath = `inset(0 ${100 - clamped}% 0 0)`;
+    divider.style.left = `${clamped}%`;
+    slider.value = String(Math.round(clamped));
+  };
+  slider.addEventListener("input", () => apply(Number(slider.value)));
+  if (stage) {
+    stage.addEventListener("pointermove", (e) => {
+      if (e.buttons !== 1) return;
+      const r = stage.getBoundingClientRect();
+      apply(((e.clientX - r.left) / r.width) * 100);
+    });
+  }
+}
 
 function syncModeUI(mode) {
   state.mode = mode;
@@ -156,13 +231,29 @@ async function embed() {
   $("difference").src = r.difference;
   $("pickbox").hidden = true;
 
+  const chosenName = body.upload ? "upload" : body.image;
+  if (!state.airplaneCover || chosenName === "airplane") {
+    state.airplaneCover = r.cover;
+    state.airplaneWm = r.watermarked;
+    if ($("hero-cover")) $("hero-cover").src = r.cover;
+    if ($("hero-wm")) $("hero-wm").src = r.watermarked;
+  } else if (chosenName !== "airplane") {
+    if ($("hero-cover")) $("hero-cover").src = r.cover;
+    if ($("hero-wm")) $("hero-wm").src = r.watermarked;
+  }
+
   const m = r.metrics;
+  const pct = fmt(m.ssim * 100, 1);
+  if ($("hero-match-badge")) $("hero-match-badge").textContent = `${pct}% Visual Match`;
   const lockLabel = state.mode.startsWith("recovery") ? "Locked + Auto-Heal" : "Locked (Spot Only)";
-  $("m-ssim-pct").textContent = `${fmt(m.ssim * 100, 1)}% Identical to Eye · ${lockLabel}`;
+  $("m-ssim-pct").textContent = `${pct}% Identical to Eye · ${lockLabel}`;
   $("embed-metrics").innerHTML =
     chip("PSNR Clarity", `${fmt(m.psnr)} dB`) +
     chip("SSIM Match", fmt(m.ssim, 4)) +
     chip("Speed", `${fmt(m.embed_ms, 1)} ms`);
+
+  pulseScan("wm-card");
+  markStepDone(2);
 
   loadCanvas(r.watermarked);
   $("attacked").src = r.watermarked;
@@ -272,10 +363,11 @@ async function attack(body) {
   const r = await api("/api/attack", { session: state.session, seed: Math.floor(Math.random() * 1e6), ...body });
   $("attacked").src = r.attacked;
   $("attack-caption").textContent = r.changed_pixels > 0
-    ? `Applied "${r.label}" (${r.changed_pixels.toLocaleString()} pixels changed)`
+    ? `Applied "${r.label}" (${r.changed_pixels.toLocaleString()} pixels edited)`
     : "Clean untouched photo";
   $("attack-out").hidden = false;
   if ($("ai-result-box")) $("ai-result-box").hidden = true;
+  markStepDone(3);
 }
 
 async function verify() {
@@ -285,6 +377,8 @@ async function verify() {
   $("dl-overlay").href = r.overlay;
   $("verify-out").hidden = false;
   $("verify-note").hidden = true;
+
+  pulseScan("overlay-card");
 
   const v = $("verdict");
   v.hidden = false;
@@ -297,7 +391,7 @@ async function verify() {
   } else if (r.recovered) {
     v.innerHTML = `Fake Edit Caught in ${pct}% of the photo — ${fmt(100 * r.restored_fraction, 0)}% healed back!<small>Red highlights the edited area; the fixed image beside it was rebuilt from hidden backups.</small>`;
   } else {
-    v.innerHTML = `Fake Edit Caught in ${pct}% of the photo (${r.blocks_failed.toLocaleString()} blocks)!<small>Tip: Choose "Protect + Auto-Heal" in Step 1 if you also want automatic pixel repair.</small>`;
+    v.innerHTML = `Fake Edit Caught in ${pct}% of the photo (${r.blocks_failed.toLocaleString()} blocks)!<small>Choose "Protect + Auto-Heal" in Step 1 if you also want automatic pixel repair.</small>`;
   }
 
   const rf = $("recovered-fig");
@@ -308,6 +402,7 @@ async function verify() {
       ? "Already Clean (No healing needed)"
       : `${fmt(100 * r.restored_fraction, 0)}% Restored Automatically`;
     rf.hidden = false;
+    pulseScan("recovered-fig");
   } else {
     rf.hidden = true;
   }
@@ -412,13 +507,12 @@ async function openInsideCinema() {
   view.hidden = false;
   if (invite) invite.hidden = true;
   view.scrollIntoView({ behavior: "smooth", block: "start" });
+  markStepDone(4);
 
-  const coverEl = $("cover");
-  const coverUrl = coverEl && coverEl.src ? coverEl.src : "";
   if (window.InsideSim) {
     window.InsideSim.open({
-      imageName: $("image") ? $("image").value : "airplane",
-      coverUrl,
+      coverUrl: state.airplaneCover || ($("cover") ? $("cover").src : ""),
+      wmUrl: state.airplaneWm || ($("watermarked") ? $("watermarked").src : ""),
     });
   }
 }
@@ -450,6 +544,82 @@ function setupInsideNav() {
   }
 }
 
+// --------------------------------------------------------------------------- Grounded AI Assistant
+function appendMsg(role, title, text, sources = []) {
+  const thread = $("ask-messages");
+  const wrap = document.createElement("div");
+  wrap.className = `qa-msg ${role}`;
+  const bubble = document.createElement("div");
+  bubble.className = "qa-bubble";
+
+  if (title) {
+    const st = document.createElement("strong");
+    st.textContent = title;
+    bubble.appendChild(st);
+  }
+  const p = document.createElement("p");
+  p.textContent = text;
+  bubble.appendChild(p);
+
+  if (sources.length) {
+    const srcRow = document.createElement("div");
+    srcRow.className = "qa-sources";
+    for (const s of sources) {
+      const sp = document.createElement("span");
+      sp.className = "src-tag";
+      sp.textContent = `Source: ${s}`;
+      srcRow.appendChild(sp);
+    }
+    bubble.appendChild(srcRow);
+  }
+
+  wrap.appendChild(bubble);
+  thread.appendChild(wrap);
+  thread.scrollTop = thread.scrollHeight;
+  return wrap;
+}
+
+async function submitQuestion(qText) {
+  const q = (qText || "").trim();
+  if (!q) return;
+  markStepDone(5);
+  appendMsg("user", "", q);
+  if ($("ask-input")) $("ask-input").value = "";
+
+  const thread = $("ask-messages");
+  const typing = document.createElement("div");
+  typing.className = "qa-msg bot";
+  typing.innerHTML = `<div class="qa-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  thread.appendChild(typing);
+  thread.scrollTop = thread.scrollHeight;
+
+  try {
+    const r = await api("/api/ask", { question: q });
+    typing.remove();
+    appendMsg("bot", r.grounded ? r.title || "Grounded Answer" : "Scope Notice", r.answer, r.sources || []);
+  } catch (err) {
+    typing.remove();
+    appendMsg("bot", "Error", err.message);
+  }
+}
+
+function setupAssistant() {
+  const form = $("ask-form");
+  const chips = $("ask-chips");
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      submitQuestion($("ask-input").value);
+    });
+  }
+  if (chips) {
+    chips.addEventListener("click", (e) => {
+      const btn = e.target.closest(".qa-chip");
+      if (btn && btn.dataset.q) submitQuestion(btn.dataset.q);
+    });
+  }
+}
+
 async function quickTamperAndHeal(attackBody) {
   await attack(attackBody);
   await verify();
@@ -464,7 +634,10 @@ async function runFullDemo() {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
+  setupHeroWipe();
+  setupScrollReveals();
   setupInsideNav();
+  setupAssistant();
   init();
   setupPaint();
 
