@@ -59,6 +59,17 @@ const fmt = (v, d = 2) => (v === null || v === undefined ? "–" : !isFinite(v) 
 const chip = (label, value) => `<span class="chip"><b>${value}</b>${label}</span>`;
 
 // --------------------------------------------------------------------------- setup
+function syncModeUI(mode) {
+  state.mode = mode;
+  document.querySelectorAll(".mode").forEach((m) => {
+    const inp = m.querySelector("input");
+    if (inp) inp.checked = inp.value === mode;
+    m.classList.toggle("selected", inp && inp.value === mode);
+  });
+  document.querySelectorAll(".preset-card").forEach((c) => c.classList.toggle("active", c.dataset.preset === mode));
+  if ($("keyrow")) $("keyrow").style.display = mode.startsWith("keyed") || mode.startsWith("recovery") ? "" : "none";
+}
+
 function renderModes() {
   const box = $("modes");
   box.innerHTML = "";
@@ -67,13 +78,15 @@ function renderModes() {
     lab.className = "mode" + (mode === state.mode ? " selected" : "");
     lab.innerHTML = `<input type="radio" name="mode" value="${mode}" ${mode === state.mode ? "checked" : ""}><span class="dot"></span>
       <span><b>${info.title}<span class="tag">${info.tag}</span></b><small>${info.text}</small></span>`;
-    lab.querySelector("input").addEventListener("change", () => {
-      state.mode = mode;
-      document.querySelectorAll(".mode").forEach((m) => m.classList.toggle("selected", m.querySelector("input").checked));
-      $("keyrow").style.display = mode.startsWith("keyed") || mode.startsWith("recovery") ? "" : "none";
-    });
+    lab.querySelector("input").addEventListener("change", () => syncModeUI(mode));
     box.appendChild(lab);
   }
+  document.querySelectorAll(".preset-card").forEach((card) =>
+    card.addEventListener("click", () => {
+      syncModeUI(card.dataset.preset);
+      busy($("embed-sec-btn"), embed);
+    })
+  );
 }
 
 async function init() {
@@ -143,18 +156,18 @@ async function embed() {
   $("hero-psnr").textContent = fmt(m.psnr, 2);
   const delta = m.psnr - 44.15;
   $("hero-delta").textContent = `${delta >= 0 ? "+" : ""}${fmt(delta, 2)} dB`;
-  $("hero-side").textContent = m.side_information_bits ? `${m.side_information_bits.toLocaleString()} bits` : state.mode === "recovery-dual" ? "2^-16 MAC" : "Key only";
+  $("hero-side").textContent = state.mode.startsWith("recovery") ? "Auto-Heal On" : state.mode.startsWith("keyed") ? "Spot Edits" : "Reference";
   $("m-ssim-pct").textContent = `${fmt(m.ssim * 100, 1)}%`;
 
   $("embed-metrics").innerHTML =
     chip("PSNR", `${fmt(m.psnr)} dB`) + chip("SSIM", fmt(m.ssim, 4)) + chip("MSE", fmt(m.mse, 3)) +
     chip("Speed", `${fmt(m.embed_ms, 1)} ms`);
 
-  // Keep top hero strip informative and human-readable
+  // Plain-English top strip readout
   const schemeName = (MODE_INFO[state.mode] || {}).title || state.mode;
-  $("hero-story").textContent = `Protected with ${schemeName} at ${fmt(m.psnr, 1)} dB PSNR — click ▶ on the next card to test a forgery and heal it back.`;
+  $("hero-story").textContent = `Locked "${body.upload ? "your uploaded photo" : body.image}" (${fmt(m.ssim * 100, 1)}% identical visually). Click ▶ on the next tile to cut part of the image and watch it self-heal.`;
   $("tile4-title").innerHTML = "Protected<br>Ready";
-  $("tile4-sub").textContent = `${fmt(m.psnr, 1)} dB · SSIM ${fmt(m.ssim, 3)} · 2 bpp`;
+  $("tile4-sub").textContent = `${fmt(m.ssim * 100, 1)}% visual match · ${schemeName}`;
 
   loadCanvas(r.watermarked);
   $("attacked").src = r.watermarked;
@@ -281,23 +294,23 @@ async function verify() {
   v.className = "verdict " + (ok ? "ok" : "bad");
   const pct = (100 * r.blocks_failed) / r.blocks_total;
   v.innerHTML = ok
-    ? `Authentic — all ${r.blocks_total.toLocaleString()} blocks verified`
-    : `Tampered — ${r.blocks_failed.toLocaleString()} / ${r.blocks_total.toLocaleString()} ${r.block_size}×${r.block_size} blocks flagged (${fmt(pct)}%)`;
+    ? `Looks Real! All ${r.blocks_total.toLocaleString()} blocks verified untouched`
+    : `Fake Edit Spotted in ${r.blocks_failed.toLocaleString()} / ${r.blocks_total.toLocaleString()} blocks (${fmt(pct)}% of photo)`;
   if (r.ber !== undefined) v.innerHTML += `<small>BER vs reference: ${fmt(r.ber, 4)}</small>`;
   const rf = $("recovered-fig");
   if (r.recovered) {
     $("recovered").src = r.recovered;
     $("dl-recovered").href = r.recovered;
     $("hero-img").src = r.recovered;
-    $("recovered-caption").textContent = `${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB (${fmt(100 * r.restored_fraction, 0)}% restored)`;
-    $("tile4-title").innerHTML = `${fmt(100 * r.restored_fraction, 0)}%<br>Healed`;
-    $("tile4-sub").textContent = `${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB PSNR`;
-    $("hero-story").textContent = `Detected ${r.blocks_failed} altered blocks (${fmt(pct)}%) and rebuilt damaged content from ${fmt(r.psnr_attacked)} to ${fmt(r.psnr_recovered)} dB.`;
+    $("recovered-caption").textContent = `Healed ${fmt(100 * r.restored_fraction, 0)}% (${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB)`;
+    $("tile4-title").innerHTML = `Fixed<br>${fmt(100 * r.restored_fraction, 0)}%`;
+    $("tile4-sub").textContent = `${fmt(r.psnr_attacked)} → ${fmt(r.psnr_recovered)} dB restored`;
+    $("hero-story").textContent = `Caught ${r.blocks_failed} forged blocks (${fmt(pct)}%) and rebuilt damaged pixels automatically (${fmt(100 * r.restored_fraction, 0)}% healed).`;
     rf.hidden = false;
   } else {
     rf.hidden = true;
-    $("tile4-title").innerHTML = ok ? "Authentic<br>Verified" : "Forgery<br>Spotted";
-    $("tile4-sub").textContent = ok ? "0 tampered blocks" : `${r.blocks_failed} blocks flagged (${fmt(pct)}%)`;
+    $("tile4-title").innerHTML = ok ? "Real &amp;<br>Safe" : "Edit<br>Caught";
+    $("tile4-sub").textContent = ok ? "0 tampered spots" : `${r.blocks_failed} altered spots highlighted`;
   }
   $("verify-note").textContent = r.note || "";
 }
@@ -309,7 +322,8 @@ async function classify() {
   if (!r.ready) return toast("Classifier still warming up — retry in a moment");
   $("clf-top-pct").textContent = `${fmt(100 * r.confidence, 1)}%`;
   $("clf-top-lbl").textContent = r.predicted;
-  $("clf-ood-pill").textContent = r.is_unknown ? "OOD Flagged" : "In-distribution";
+  $("clf-ood-pill").hidden = false;
+  $("clf-ood-pill").textContent = r.is_unknown ? "Unseen Type" : "Recognized";
   const oodPill = r.is_unknown
     ? `<span class="ood-badge warn">OOD (${fmt(100 * r.confidence, 1)}% &lt; ${fmt(100 * r.threshold, 1)}%)</span>`
     : `<span class="ood-badge safe">Known (${fmt(100 * r.confidence, 1)}% &ge; ${fmt(100 * r.threshold, 1)}%)</span>`;
@@ -341,6 +355,7 @@ async function inspectBlock(row, col) {
   $("neqr").src = r.neqr;
   $("block-out").hidden = false;
   $("nisq-tbl").hidden = true;
+  if ($("quantum-details")) $("quantum-details").open = true;
   $("block-hint").textContent = `Block (${row}, ${col}) simulated in ${fmt(Object.values(r.timings_ms).reduce((a, b) => a + b, 0), 0)} ms.`;
 }
 
@@ -357,6 +372,7 @@ async function runBlockNisq() {
     .map((row) => `<tr><td>${row.name}</td><td>${row.qubits}</td><td>${row.two_qubit_gates}</td><td>${row.depth}</td><td>${fmt(row.duration_us, 1)}</td><td>${fmt(100 * row.success, 1)}%</td></tr>`)
     .join("");
   $("nisq-tbl").hidden = false;
+  if ($("quantum-details")) $("quantum-details").open = true;
   if (r.rows[1]) $("stat-depth").textContent = `${r.rows[1].depth}`;
 }
 
@@ -383,35 +399,95 @@ function setupTheme() {
 function showView(view) {
   const dash = $("dashboard-view");
   const paper = $("paper-view");
+  const inside = $("inside-view");
   const isPaper = view === "paper";
-  if (dash) dash.hidden = isPaper;
+  const isInside = view === "inside";
+  if (dash) dash.hidden = isPaper || isInside;
   if (paper) paper.hidden = !isPaper;
+  if (inside) inside.hidden = !isInside;
+  if (!isInside && window.InsideSim) window.InsideSim.close();
   document.querySelectorAll(".rail-nav a").forEach((l) => {
-    const match = (l.dataset.view || "dashboard") === view && (!isPaper ? l.getAttribute("href") === "#studio-sec" : true);
-    if (isPaper || l.dataset.view === "paper") l.classList.toggle("active", isPaper && l.dataset.view === "paper");
-    else if (match) l.classList.add("active");
+    const v = l.dataset.view || "dashboard";
+    if (isPaper) l.classList.toggle("active", v === "paper");
+    else if (isInside) l.classList.toggle("active", v === "inside");
+    else l.classList.toggle("active", v === "dashboard" && l.getAttribute("href") === "#studio-sec");
   });
   if (isPaper) {
     loadPaperSummary();
     paper.scrollIntoView({ behavior: "smooth" });
+  } else if (isInside) {
+    launchInsideSimulation();
+    inside.scrollIntoView({ behavior: "smooth" });
   }
+}
+
+async function launchInsideSimulation() {
+  const coverEl = $("cover");
+  const coverUrl = coverEl && coverEl.src ? coverEl.src : "";
+  let ctxData = { imageName: $("image") ? $("image").value : "airplane", row: state.blockRow, col: state.blockCol, coverUrl };
+  if (state.session) {
+    try {
+      const blk = await api("/api/block", { session: state.session, row: state.blockRow, col: state.blockCol });
+      const ps = blk.pixels || [50, 60, 48, 32];
+      const wb = blk.trace.watermark || [1, 1, 0, 0, 1, 1, 0, 1];
+      const wPs = ps.map((p, i) => {
+        let out = p;
+        for (let b = 0; b < 2; b++) {
+          const targetBit = wb[2 * i + b];
+          out = (out & ~(1 << b)) | ((targetBit & 1) << b);
+        }
+        return out;
+      });
+      ctxData = {
+        ...ctxData,
+        pixels: ps,
+        binary: blk.binary,
+        ppb: blk.trace.ppb,
+        sum: blk.trace.sum,
+        aa: blk.trace.aa,
+        watermark: wb,
+        watermarkedPixels: wPs,
+      };
+    } catch (_) {
+      /* fallback defaults */
+    }
+  }
+  if (window.InsideSim) window.InsideSim.open(ctxData);
 }
 
 function setupNav() {
   document.querySelectorAll(".rail-nav a").forEach((a) => {
     a.addEventListener("click", (ev) => {
-      document.querySelectorAll(".rail-nav a").forEach((l) => l.classList.remove("active"));
-      a.classList.add("active");
       const view = a.dataset.view || "dashboard";
       showView(view);
-      if (view === "paper") ev.preventDefault();
+      if (view === "paper" || view === "inside") ev.preventDefault();
     });
   });
   $("hero-paper-icon").addEventListener("click", () => showView("paper"));
+  if ($("show-inside-btn")) $("show-inside-btn").addEventListener("click", () => showView("inside"));
+  if ($("step5-inside-btn")) $("step5-inside-btn").addEventListener("click", () => showView("inside"));
+  if ($("banner-inside-btn")) $("banner-inside-btn").addEventListener("click", () => showView("inside"));
   $("back-overview").addEventListener("click", () => {
     showView("dashboard");
     $("top").scrollIntoView({ behavior: "smooth" });
   });
+  if ($("back-from-inside")) {
+    $("back-from-inside").addEventListener("click", () => {
+      showView("dashboard");
+      $("top").scrollIntoView({ behavior: "smooth" });
+    });
+  }
+  if ($("inside-play")) $("inside-play").addEventListener("click", () => window.InsideSim && window.InsideSim.togglePlay());
+  if ($("inside-prev")) $("inside-prev").addEventListener("click", () => window.InsideSim && window.InsideSim.prev());
+  if ($("inside-next")) $("inside-next").addEventListener("click", () => window.InsideSim && window.InsideSim.next());
+  if ($("inside-replay")) $("inside-replay").addEventListener("click", () => window.InsideSim && window.InsideSim.replay());
+  if ($("inside-speed")) $("inside-speed").addEventListener("click", () => window.InsideSim && window.InsideSim.cycleSpeed());
+  if ($("inside-scrub")) {
+    $("inside-scrub").addEventListener("click", (e) => {
+      const r = $("inside-scrub").getBoundingClientRect();
+      window.InsideSim && window.InsideSim.scrubRatio((e.clientX - r.left) / r.width);
+    });
+  }
 }
 
 async function loadPaperSummary() {

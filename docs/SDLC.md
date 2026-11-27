@@ -57,8 +57,8 @@ flowchart LR
 - **Container Deployment**: [`Dockerfile`](../Dockerfile) runs `qwm ui` under non-root user `qwm` with a built-in `/api/health` container `HEALTHCHECK`.
 
 ```bash
-docker build -t qwm:3.0.1 .
-docker run --rm -p 8765:8765 qwm:3.0.1
+docker build -t qwm:3.0.2 .
+docker run --rm -p 8765:8765 qwm:3.0.2
 ```
 
 ## 6. Maintenance & Governance

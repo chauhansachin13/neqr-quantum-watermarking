@@ -45,7 +45,7 @@ def test_static_files_and_traversal(server):
     base, _ = server
     status, body = _get(base + "/")
     assert status == 200 and b"NEQR Quantum Watermarking" in body
-    for path in ("/style.css", "/app.js"):
+    for path in ("/style.css", "/app.js", "/inside.js"):
         assert _get(base + path)[0] == 200
     with pytest.raises(urllib.error.HTTPError) as err:
         _get(base + "/../server.py")

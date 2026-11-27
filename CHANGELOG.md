@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.2
+
+- **Beginner-Friendly Studio & Interactive Animation (`Show Inside Working`)**:
+  - Added `Show Inside Working` ([`inside.js`](qwm/web/static/inside.js), `#inside-view`): a 6-chapter, 60fps canvas animation built around live image pixels & `/api/block` circuits illustrating NEQR superposition (`Eq. 1`), reversible watermark generation (`RPA -> Sum -> D4 -> XOR`), embedding + `v3` OPAP coset shift (`Table 3`), blind Toeplitz MAC + dual-partner `8×8` recovery links, 15-qubit Grover tamper search + partner healing, and exact unitary inverse `U†` (`Eqs. 12–16`) + 162-d AI forensics.
+  - Simplified the web UI copy into a plain-English 3-step studio (`1 · Protect`, `2 · Break`, `3 · Spot & Heal`) with 3 beginner mode cards upfront while keeping all 7 research algorithms and Qiskit/NISQ tables accessible inside expandable sections.
+- **Bash 3.2 Reproducibility Fix**: fixed `RUN_ARG[@]: unbound variable` / empty-array expansion under `set -u` in `scripts/reproduce_all.sh`.
+
 ## 3.0.1
 
 Paper-fidelity, workflow simplicity, and Bento UI polish:
