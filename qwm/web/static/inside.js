@@ -1,33 +1,34 @@
 "use strict";
-// Easy-to-understand 5-scene animated visual story showing how the photo protection & auto-healing works.
+// Crystal-clear 5-part visual story showing how photo protection & self-healing works.
+// Zero raw binary or intimidating math unless the viewer turns on "Quantum Math".
 
 (function () {
-  const SCENE_DUR = 5.4;
+  const SCENE_DUR = 5.2;
   const SCENES = [
     {
-      title: "1. Breaking the Photo Into Tiny Squares",
-      ref: "Paper Sec. 2.1 · NEQR",
-      summary: "Every picture is a grid of tiny brightness squares. Adjusting the last 2 tiny brightness levels inside a square is completely invisible to human eyes—so we store secret safety clues there.",
+      title: "1. Tiny Invisible Ink Inside Pixels",
+      ref: "Base Paper Sec. 2.1 · NEQR + 2 LSBs",
+      summary: "We adjust only the smallest 0.4% of brightness inside tiny picture dots. Human eyes see zero difference, yet the photo can now carry secret safety notes.",
     },
     {
-      title: "2. Locking Each Square With an Invisible Fingerprint",
+      title: "2. Locking Every Square With a Password",
       ref: "Paper Sec. 3.1–3.2 · RPA, D4, XOR & QE",
-      summary: "The app reads each 2×2 block's average brightness and pattern, creates a unique secret lock tag with your key, and hides it inside those invisible slots while keeping 98.4% visual match.",
+      summary: "Each small square gets its own invisible padlock computed from your secret key. If anyone later draws or cuts over a square, its padlock breaks immediately.",
     },
     {
-      title: "3. Hiding Backup Clones Across the Image",
-      ref: "v2 & v3 · Dual-Partner 8×8 Shards",
-      summary: "Before finishing, every tile shrinks a backup snapshot of itself and hides two copies in faraway corners of your photo. If one area gets deleted, its clones elsewhere survive!",
+      title: "3. Hiding Spare Backups Across the Photo",
+      ref: "Self-Recovery · Dual-Partner Clones",
+      summary: "Every part shrinks two tiny spare snapshots of itself and tucks them into completely different corners. Even if a whole wing is erased, distant corners still keep the spare!",
     },
     {
-      title: "4. Spotting Any Cut, Paint, or Fake Edit",
-      ref: "Sec. 3.3 · Blind Verify + 15q Grover Search",
-      summary: "If someone cuts out an object or edits the photo, a fast quantum scanner checks every tile's lock. Untouched areas stay green; altered areas glow red right away.",
+      title: "4. Sweeping Scanner Spots Fake Edits Red",
+      ref: "Blind Verify · Grover 15q Radar",
+      summary: "A fast scanner checks every padlock across the image. Genuine untouched squares light up green; altered squares glow red so you see the exact fake patch.",
     },
     {
       title: "5. Flying Backups Home to Heal the Photo",
-      ref: "v3 Self-Recovery + Eqs. 12–16 U† Reverse",
-      summary: "Backup clones fly straight back from safe corners to rebuild missing pixels (up to 100% healed!), and reversible quantum gates verify everything cleanly alongside the AI detector.",
+      ref: "Partner Healing · Reversible U† Verification",
+      summary: "Those safe spare copies fly back into the damaged hole to reconstruct the missing airplane wing or sky cleanly — bringing the damaged spot right back!",
     },
   ];
 
@@ -43,29 +44,18 @@
     lastTs: 0,
     rafId: 0,
     imgObj: null,
-    data: {
-      imageName: "airplane",
-      row: 0,
-      col: 0,
-      pixels: [50, 60, 48, 32],
-      binary: ["00110010", "00111100", "00110000", "00100000"],
-      sum: 190,
-      aa: 48,
-      watermark: [1, 1, 0, 0, 1, 1, 0, 1],
-      watermarkedPixels: [49, 63, 51, 35],
-    },
+    imageName: "airplane",
   };
 
-  const C_BG = "#0b0a08";
-  const C_CARD = "#161310";
-  const C_WIRE = "#3c352d";
-  const C_CREAM = "#f4ede0";
-  const C_GOLD = "#e5c69b";
-  const C_AMBER = "#f5b864";
+  const C_BG = "#0e0c0a";
+  const C_CARD = "#191613";
+  const C_BORDER = "#332c24";
+  const C_TEXT = "#f5f2eb";
+  const C_MUTED = "#b5ada0";
+  const C_GOLD = "#f5b864";
   const C_OK = "#4ade80";
   const C_BAD = "#fb7185";
-  const C_VIOLET = "#c4b5fd";
-  const C_MUTED = "#a89f92";
+  const C_SKY = "#7dd3fc";
 
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
   const ease = (x) => {
@@ -74,17 +64,17 @@
   };
   const lerp = (a, b, t) => a + (b - a) * clamp01(t);
 
-  function roundRect(ctx, x, y, w, h, r) {
+  function rrect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
   }
 
   function pill(ctx, x, y, text, bg, fg) {
     ctx.save();
-    ctx.font = "600 11px 'Inter', sans-serif";
+    ctx.font = "600 11.5px 'Inter', sans-serif";
     const w = ctx.measureText(text).width + 20;
     ctx.fillStyle = bg;
-    roundRect(ctx, x, y, w, 24, 999);
+    rrect(ctx, x, y, w, 25, 999);
     ctx.fill();
     ctx.fillStyle = fg;
     ctx.textAlign = "left";
@@ -94,7 +84,27 @@
     return w;
   }
 
-  function drawOrb(ctx, x, y, color, r = 6) {
+  function drawPadlock(ctx, cx, cy, scale, color, locked = true) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    if (locked) ctx.arc(0, -6, 6, Math.PI, 0);
+    else ctx.arc(3, -8, 6, Math.PI * 1.15, -0.15);
+    ctx.stroke();
+    rrect(ctx, -9, -4, 18, 14, 3);
+    ctx.fill();
+    ctx.fillStyle = "#0e0c0a";
+    ctx.beginPath();
+    ctx.arc(0, 3, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawOrb(ctx, x, y, color, r = 6.5) {
     ctx.save();
     ctx.fillStyle = color;
     ctx.shadowColor = color;
@@ -105,255 +115,192 @@
     ctx.restore();
   }
 
-  function drawStageHeader(ctx, W, idx, sceneP) {
+  function drawPhoto(ctx, x, y, size, radius = 12) {
+    ctx.save();
+    rrect(ctx, x, y, size, size, radius);
+    ctx.clip();
+    if (sim.imgObj && sim.imgObj.complete) {
+      ctx.drawImage(sim.imgObj, x, y, size, size);
+    } else {
+      ctx.fillStyle = "#26211c";
+      ctx.fillRect(x, y, size, size);
+    }
+    ctx.restore();
+  }
+
+  function drawHeader(ctx, W, idx, sceneP) {
     const sc = SCENES[idx];
-    const tag = sim.paperLabels ? `SCENE ${idx + 1}/5  ·  ${sc.ref}` : `HOW IT WORKS  ·  PART ${idx + 1} OF 5`;
+    const tag = sim.paperLabels ? `PART ${idx + 1}/5  ·  ${sc.ref}` : `STEP ${idx + 1} OF 5  ·  EASY VISUAL GUIDE`;
     ctx.fillStyle = C_GOLD;
-    ctx.font = "600 11px 'JetBrains Mono', monospace";
+    ctx.font = "700 11px 'JetBrains Mono', monospace";
     ctx.textAlign = "left";
     ctx.fillText(tag, 36, 34);
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "500 23px 'Inter', sans-serif";
+    ctx.font = "700 23px 'Inter', sans-serif";
     ctx.fillText(sc.title, 36, 64);
 
     ctx.fillStyle = C_MUTED;
-    ctx.font = "500 11.5px 'Inter', sans-serif";
+    ctx.font = "500 12px 'Inter', sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(`Photo: ${sim.data.imageName}`, W - 36, 34);
+    ctx.fillText(`Active Photo: ${sim.imageName}`, W - 36, 34);
 
-    ctx.strokeStyle = "#26211b";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#2a241d";
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(36, 82);
     ctx.lineTo(W - 36, 82);
     ctx.stroke();
 
-    ctx.strokeStyle = C_AMBER;
+    ctx.strokeStyle = C_GOLD;
     ctx.beginPath();
     ctx.moveTo(36, 82);
     ctx.lineTo(36 + (W - 72) * sceneP, 82);
     ctx.stroke();
   }
 
-  function drawPhoto(ctx, x, y, size, radius = 12) {
-    ctx.save();
-    roundRect(ctx, x, y, size, size, radius);
-    ctx.clip();
-    if (sim.imgObj && sim.imgObj.complete) ctx.drawImage(sim.imgObj, x, y, size, size);
-    else {
-      ctx.fillStyle = "#26201a";
-      ctx.fillRect(x, y, size, size);
-    }
-    ctx.restore();
-  }
-
-  // ----------------------------------------------------------- SCENE 1: Zoom into pixels & invisible bits
+  // ----------------------------------------------------------- PART 1: Side-by-side Same Look + Invisible 0.4% Mark
   function drawScene1(ctx, W, H, p) {
-    const d = sim.data;
-    const z = ease(clamp01(p * 1.6));
-
-    // Left: Photo with glowing focus box
-    const px = 44, py = 116, ps = 240;
+    const px = 44, py = 114, ps = 250;
     drawPhoto(ctx, px, py, ps);
-    ctx.strokeStyle = "#3f382e";
+    ctx.strokeStyle = C_BORDER;
     ctx.lineWidth = 1.5;
-    roundRect(ctx, px, py, ps, ps, 12);
+    rrect(ctx, px, py, ps, ps, 12);
     ctx.stroke();
 
-    const rx = px + 92, ry = py + 86, rs = 34;
-    ctx.strokeStyle = C_AMBER;
+    const focus = ease(clamp01(p * 1.8));
+    const rx = px + 92, ry = py + 84, rs = 44;
+    ctx.strokeStyle = C_GOLD;
     ctx.lineWidth = 2.5;
-    roundRect(ctx, rx, ry, rs, rs, 4);
+    rrect(ctx, rx, ry, rs, rs, 6);
     ctx.stroke();
-    pill(ctx, px + 10, py + 10, "Your Photo", "rgba(11,10,8,0.75)", "#fff");
+    pill(ctx, px + 10, py + 10, "Your Photo", "rgba(14,12,10,0.78)", "#fff");
 
-    // Connecting zoom lines
-    const bx = 336, by = 136, tile = 84;
-    ctx.strokeStyle = "rgba(245,184,100,0.5)";
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(rx + rs, ry);
-    ctx.lineTo(bx, by);
-    ctx.moveTo(rx + rs, ry + rs);
-    ctx.lineTo(bx, by + tile * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Middle: Zoomed 2x2 bright squares
-    for (let i = 0; i < 4; i++) {
-      const tx = bx + (i % 2) * tile;
-      const ty = by + Math.floor(i / 2) * tile;
-      const val = d.pixels[i];
-      ctx.fillStyle = `rgb(${val},${val},${val})`;
-      ctx.globalAlpha = 0.3 + 0.7 * z;
-      roundRect(ctx, tx + 3, ty + 3, tile - 6, tile - 6, 8);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = C_GOLD;
-      ctx.lineWidth = 1.6;
-      roundRect(ctx, tx + 3, ty + 3, tile - 6, tile - 6, 8);
-      ctx.stroke();
-
-      ctx.fillStyle = val > 140 ? "#11100e" : "#ffffff";
-      ctx.font = "700 18px 'Inter', sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(String(val), tx + tile / 2, ty + tile / 2 + 4);
-    }
-    ctx.fillStyle = C_MUTED;
-    ctx.font = "500 12px 'Inter', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Zoomed 4 Tiny Squares", bx + tile, by + tile * 2 + 24);
-
-    // Right: Clear Brightness Bar + "Secret Storage Slots" analogy
-    const rx2 = 546, ry2 = 126, rw = 370, rh = 240;
+    // Zoomed smooth patch + clear Before vs After eye test card
+    const cx = 340, cy = 114, cw = 576, ch = 280;
     ctx.fillStyle = C_CARD;
-    ctx.strokeStyle = "#2b251e";
-    roundRect(ctx, rx2, ry2, rw, rh, 14);
-    ctx.fill();
+    ctx.strokeStyle = C_BORDER;
+    rrect(ctx, cx, cy, cw, ch, 14);
     ctx.stroke();
+    ctx.fill();
 
-    ctx.fillStyle = C_GOLD;
-    ctx.font = "600 12px 'Inter', sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "600 16px 'Inter', sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText(sim.paperLabels ? "8 QUBITS PER PIXEL (2 LSB HOST SLOTS)" : "HOW WE HIDE DATA WITHOUT CHANGING LOOKS", rx2 + 20, ry2 + 30);
-
-    // 8 lights row
-    const bits = d.binary[0] || "00110010";
-    for (let b = 0; b < 8; b++) {
-      const lx = rx2 + 20 + b * 41;
-      const ly = ry2 + 64;
-      const isHiddenSlot = b >= 6;
-      const pulse = isHiddenSlot ? 0.5 + 0.5 * Math.sin(p * Math.PI * 6) : 0;
-      ctx.fillStyle = isHiddenSlot ? `rgba(74, 222, 128, ${0.18 + 0.25 * pulse})` : "#1f1b17";
-      ctx.strokeStyle = isHiddenSlot ? C_OK : "#3d362e";
-      ctx.lineWidth = isHiddenSlot ? 2 : 1.2;
-      roundRect(ctx, lx, ly, 34, 46, 8);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = "#fff";
-      ctx.font = "700 15px 'JetBrains Mono', monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(bits[b], lx + 17, ly + 28);
-    }
-
-    // Visual brackets explaining left 6 vs right 2
+    ctx.fillText("Why can't human eyes see the hidden lock?", cx + 26, cy + 38);
     ctx.fillStyle = C_MUTED;
-    ctx.font = "500 11.5px 'Inter', sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("Main brightness (Untouched)", rx2 + 22, ry2 + 132);
-    ctx.fillStyle = C_OK;
-    ctx.font = "600 12px 'Inter', sans-serif";
-    ctx.fillText("Last 2 tiny bits = Secret Shelf!", rx2 + 195, ry2 + 132);
-
-    ctx.fillStyle = C_CREAM;
     ctx.font = "400 13px 'Inter', sans-serif";
-    ctx.fillText("Changing 50 → 49 is only 0.4% change.", rx2 + 20, ry2 + 176);
-    ctx.fillStyle = C_MUTED;
-    ctx.fillText("Human eyes see the exact same color!", rx2 + 20, ry2 + 198);
-    ctx.fillText("In quantum mode, H gates hold all 4 at once.", rx2 + 20, ry2 + 220);
+    ctx.fillText("We nudge a tiny dot's shade by less than 1% — invisible to your eye, readable by computer.", cx + 26, cy + 62);
 
-    pill(ctx, 44, H - 56, "Key Idea: Tiny invisible shifts let a photo carry hidden safety proof", "#1a1713", C_GOLD);
-  }
-
-  // ----------------------------------------------------------- SCENE 2: Building the Lock & Putting It In
-  function drawScene2(ctx, W, H, p) {
-    const d = sim.data;
-    const step1 = ease(clamp01(p * 2.2));
-    const step2 = ease(clamp01((p - 0.3) * 2.4));
-    const step3 = ease(clamp01((p - 0.62) * 2.6));
-
-    // Left Card: Inputs (Block Squares + Key)
-    ctx.fillStyle = C_CARD;
-    ctx.strokeStyle = "#2f2922";
-    roundRect(ctx, 40, 118, 220, 270, 14);
+    // Left swatch: Original brightness
+    const sw1x = cx + 30, sw2x = cx + 310, swy = cy + 92, sww = 230, swh = 110;
+    ctx.fillStyle = "rgb(148,148,148)";
+    rrect(ctx, sw1x, swy, sww, swh, 12);
     ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = C_GOLD;
-    ctx.font = "600 12px 'Inter', sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("STEP A · READ SQUARE", 60, 148);
-    ctx.fillStyle = "#fff";
-    ctx.font = "500 14px 'Inter', sans-serif";
-    ctx.fillText(`Pixels: [${d.pixels.join(", ")}]`, 60, 184);
-    ctx.fillText(`Avg Light: ${d.aa}`, 60, 214);
-    ctx.fillText("Your Key: demo-key", 60, 244);
-    ctx.fillStyle = C_MUTED;
-    ctx.font = "400 12px 'Inter', sans-serif";
-    ctx.fillText(sim.paperLabels ? "Uses RPA, Adder & D4" : "Reads brightness + secret key", 60, 286);
-
-    // Center Factory Box: Secret Fingerprint Maker
-    ctx.fillStyle = step2 > 0.1 ? "rgba(229,198,155,0.12)" : C_CARD;
-    ctx.strokeStyle = step2 > 0.1 ? C_AMBER : "#2f2922";
-    ctx.lineWidth = 2;
-    roundRect(ctx, 326, 132, 270, 240, 16);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = C_AMBER;
-    ctx.font = "600 12px 'Inter', sans-serif";
+    ctx.fillStyle = "#141413";
+    ctx.font = "700 14px 'Inter', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("STEP B · CREATE SECRET LOCK", 461, 166);
+    ctx.fillText("Before: Normal Dot", sw1x + sww / 2, swy + 48);
+    ctx.font = "500 12px 'Inter', sans-serif";
+    ctx.fillText("Plain shade (100%)", sw1x + sww / 2, swy + 70);
 
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 22px 'JetBrains Mono', monospace";
-    ctx.fillText(step2 > 0.2 ? d.watermark.join("") : "········", 461, 224);
-    ctx.fillStyle = C_MUTED;
-    ctx.font = "400 12px 'Inter', sans-serif";
-    ctx.fillText("8-Bit Safety Fingerprint", 461, 254);
-    ctx.fillText("Unique to this square — fakes fail!", 461, 294);
-    if (sim.paperLabels) ctx.fillText("Wb = PPB ⊕ AA", 461, 324);
+    // Arrow
+    ctx.fillStyle = C_GOLD;
+    ctx.font = "700 22px 'Inter', sans-serif";
+    ctx.fillText("→", cx + 285, swy + 58);
 
-    // Animated flowing wire L -> Center -> R
-    ctx.strokeStyle = C_WIRE;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(260, 252);
-    ctx.lineTo(326, 252);
-    ctx.moveTo(596, 252);
-    ctx.lineTo(664, 252);
-    ctx.stroke();
-    if (step1 > 0 && step1 < 1) drawOrb(ctx, lerp(260, 326, step1), 252, C_AMBER, 6);
-    if (step3 > 0 && step3 < 1) drawOrb(ctx, lerp(596, 664, step3), 252, C_OK, 6);
-
-    // Right Card: Protected Pixels Output
-    ctx.fillStyle = C_CARD;
-    ctx.strokeStyle = step3 > 0.5 ? C_OK : "#2f2922";
-    roundRect(ctx, 664, 118, 256, 270, 14);
+    // Right swatch: +1% hidden ink (looks identical!)
+    const afterShade = Math.round(lerp(148, 149, focus));
+    ctx.fillStyle = `rgb(${afterShade},${afterShade},${afterShade})`;
+    ctx.strokeStyle = focus > 0.5 ? C_OK : C_BORDER;
+    ctx.lineWidth = 2.5;
+    rrect(ctx, sw2x, swy, sww, swh, 12);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = step3 > 0.5 ? C_OK : C_GOLD;
-    ctx.font = "600 12px 'Inter', sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("STEP C · SAVED INVISIBLE", 684, 148);
-
-    for (let i = 0; i < 4; i++) {
-      const y = 186 + i * 38;
-      const before = d.pixels[i], after = step3 > 0.4 ? d.watermarkedPixels[i] : before;
-      ctx.fillStyle = "#fff";
-      ctx.font = "500 13px 'Inter', sans-serif";
-      ctx.fillText(`Square ${i + 1}:`, 684, y);
-      ctx.font = "700 14px 'JetBrains Mono', monospace";
-      ctx.fillStyle = step3 > 0.4 ? C_OK : C_GOLD;
-      ctx.fillText(`${before} → ${after}`, 772, y);
-    }
-    ctx.fillStyle = C_MUTED;
+    ctx.fillStyle = "#141413";
+    ctx.font = "700 14px 'Inter', sans-serif";
+    ctx.fillText("After: With Secret Ink", sw2x + sww / 2, swy + 48);
     ctx.font = "500 12px 'Inter', sans-serif";
-    ctx.fillText("Visual Match: 98.4% Identical ✓", 684, 356);
+    ctx.fillText("99.6% same shade to eye ✓", sw2x + sww / 2, swy + 70);
 
-    pill(ctx, 40, H - 56, "Key Idea: Even if someone pastes over the photo later, the secret lock inside won't match!", "#1a1713", C_GOLD);
+    ctx.textAlign = "left";
+    pill(
+      ctx,
+      cx + 30,
+      cy + 224,
+      sim.paperLabels ? "Uses last 2 LSBs of 8-bit NEQR pixels" : "Result: Two colors look 100% identical to people, yet carry hidden data!",
+      "#231f1a",
+      C_GOLD
+    );
   }
 
-  // ----------------------------------------------------------- SCENE 3: Hiding Two Backup Clones
-  function drawScene3(ctx, W, H, p) {
-    const gx = 48, gy = 114, gs = 300;
+  // ----------------------------------------------------------- PART 2: Secret Padlocks Stamped on Every Tile
+  function drawScene2(ctx, W, H, p) {
+    const gx = 48, gy = 114, gs = 266;
     drawPhoto(ctx, gx, gy, gs);
-    ctx.fillStyle = "rgba(11,10,8,0.38)";
+    ctx.fillStyle = "rgba(12,10,8,0.28)";
     ctx.fillRect(gx, gy, gs, gs);
 
-    // 8x8 tile lines
-    ctx.strokeStyle = "rgba(244,237,224,0.22)";
-    ctx.lineWidth = 1;
+    const step = gs / 4;
+    const stamped = Math.floor(ease(p) * 16);
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const idx = r * 4 + c;
+        const tx = gx + c * step, ty = gy + r * step;
+        ctx.strokeStyle = idx <= stamped ? "rgba(245,184,100,0.7)" : "rgba(255,255,255,0.2)";
+        ctx.lineWidth = 1.3;
+        ctx.strokeRect(tx, ty, step, step);
+        if (idx <= stamped) {
+          drawPadlock(ctx, tx + step / 2, ty + step / 2 + 2, 0.72, C_GOLD, true);
+        }
+      }
+    }
+    rrect(ctx, gx, gy, gs, gs, 12);
+    ctx.strokeStyle = C_GOLD;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Right cards explaining Locked vs Tampered
+    const rx = 360, rw = 556;
+    ctx.fillStyle = C_CARD;
+    ctx.strokeStyle = C_BORDER;
+    rrect(ctx, rx, 114, rw, 130, 14);
+    ctx.fill();
+    ctx.stroke();
+    drawPadlock(ctx, rx + 42, 178, 1.3, C_OK, true);
+    ctx.fillStyle = C_OK;
+    ctx.font = "700 15px 'Inter', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Every square gets a unique invisible lock", rx + 78, 160);
+    ctx.fillStyle = C_MUTED;
+    ctx.font = "400 13px 'Inter', sans-serif";
+    ctx.fillText("Locked using the square's own texture + your secret password.", rx + 78, 184);
+    if (sim.paperLabels) ctx.fillText("RPA + D4 + CNOT computes PPB ⊕ AA MAC tags.", rx + 78, 206);
+
+    ctx.fillStyle = C_CARD;
+    ctx.strokeStyle = p > 0.45 ? C_BAD : C_BORDER;
+    rrect(ctx, rx, 260, rw, 130, 14);
+    ctx.fill();
+    ctx.stroke();
+    drawPadlock(ctx, rx + 42, 324, 1.3, C_BAD, false);
+    ctx.fillStyle = C_BAD;
+    ctx.font = "700 15px 'Inter', sans-serif";
+    ctx.fillText("If anyone edits or pastes here later — lock snaps open!", rx + 78, 306);
+    ctx.fillStyle = C_MUTED;
+    ctx.font = "400 13px 'Inter', sans-serif";
+    ctx.fillText("Even a clever Photoshop patch can't fake a secret key it doesn't know.", rx + 78, 330);
+  }
+
+  // ----------------------------------------------------------- PART 3: Hiding Two Backup Stickers Elsewhere
+  function drawScene3(ctx, W, H, p) {
+    const gx = 48, gy = 114, gs = 290;
+    drawPhoto(ctx, gx, gy, gs);
+    ctx.fillStyle = "rgba(11,10,8,0.34)";
+    ctx.fillRect(gx, gy, gs, gs);
+
     const step = gs / 8;
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = 1;
     for (let i = 1; i < 8; i++) {
       ctx.beginPath();
       ctx.moveTo(gx + i * step, gy);
@@ -362,25 +309,21 @@
       ctx.lineTo(gx + gs, gy + i * step);
       ctx.stroke();
     }
-    roundRect(ctx, gx, gy, gs, gs, 12);
-    ctx.strokeStyle = "#433c33";
-    ctx.stroke();
 
-    // Source Tile -> Primary & Secondary Partners
     const sx = gx + 2.5 * step, sy = gy + 3.5 * step;
     const p1x = gx + 6.5 * step, p1y = gy + 1.5 * step;
     const p2x = gx + 5.5 * step, p2y = gy + 6.5 * step;
 
     ctx.fillStyle = "rgba(245,184,100,0.45)";
-    ctx.strokeStyle = C_AMBER;
+    ctx.strokeStyle = C_GOLD;
     ctx.lineWidth = 2.5;
     ctx.fillRect(sx - step / 2, sy - step / 2, step, step);
     ctx.strokeRect(sx - step / 2, sy - step / 2, step, step);
 
-    const a1 = ease(clamp01((p - 0.12) * 1.9));
-    const a2 = ease(clamp01((p - 0.34) * 1.9));
+    const a1 = ease(clamp01((p - 0.1) * 1.9));
+    const a2 = ease(clamp01((p - 0.32) * 1.9));
 
-    function flyBeam(x1, y1, cx, cy, x2, y2, prog, col, tag) {
+    function arcCopy(x1, y1, cx, cy, x2, y2, prog, col, tag) {
       ctx.save();
       ctx.strokeStyle = col;
       ctx.lineWidth = 2.5;
@@ -392,76 +335,72 @@
       const bx = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2;
       const by = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2;
       if (prog > 0.02 && prog < 0.98) drawOrb(ctx, bx, by, col, 6.5);
-      if (prog > 0.8) {
+      if (prog > 0.78) {
         ctx.fillStyle = col;
-        ctx.fillRect(x2 - step / 2, y2 - step / 2, step, step);
-        ctx.fillStyle = "#0b0a08";
+        rrect(ctx, x2 - step / 2 - 4, y2 - step / 2, step + 8, step, 6);
+        ctx.fill();
+        ctx.fillStyle = "#0e0c0a";
         ctx.font = "700 10px 'Inter', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(tag, x2, y2 + 3.5);
+        ctx.fillText(tag, x2, y2 + 4);
       }
       ctx.restore();
     }
 
-    flyBeam(sx, sy, gx + 4.5 * step, gy + 0.5 * step, p1x, p1y, a1, C_AMBER, "Copy 1");
-    flyBeam(sx, sy, gx + 4 * step, gy + 6.2 * step, p2x, p2y, a2, C_VIOLET, "Copy 2");
+    arcCopy(sx, sy, gx + 4.5 * step, gy + 0.4 * step, p1x, p1y, a1, C_GOLD, "Copy 1");
+    arcCopy(sx, sy, gx + 4.2 * step, gy + 6.4 * step, p2x, p2y, a2, C_SKY, "Copy 2");
 
-    // Friendly Explanation Cards on the right
-    const rx = 392, rw = 528;
-    const steps = [
-      { title: "Why hide copies far away?", body: "If someone erases the airplane wing, any lock inside that spot gets erased too. So every tile sends a compressed backup snapshot to two unrelated distant spots!", col: C_AMBER },
-      { title: "Primary Backup Copy (Main Helper)", body: "Stored in a completely different corner using your secret key shuffle.", col: C_GOLD },
-      { title: "Extra Safety Copy (Second Helper)", body: "Even if a huge chunk (up to 40%!) is damaged, the backup clone restores it cleanly.", col: C_VIOLET },
+    // Simple everyday house-key analogy on right
+    const rx = 380, rw = 536;
+    const boxes = [
+      { title: "Spare Key Trick (Why Copies Go Elsewhere)", text: "If an attacker erases the wing here, they also erase whatever was saved inside the wing.", col: C_GOLD },
+      { title: "Backup Copy 1 tucked into top sky corner", text: "A shrunk summary of the wing hides invisibly inside a far corner.", col: C_OK },
+      { title: "Backup Copy 2 tucked into opposite corner", text: "Even if a huge chunk is cut out, another spare backup still survives!", col: C_SKY },
     ];
-    steps.forEach((st, idx) => {
-      const cy = 114 + idx * 102;
+    boxes.forEach((b, k) => {
+      const y = 114 + k * 98;
       ctx.fillStyle = C_CARD;
-      ctx.strokeStyle = idx === 0 || p > 0.25 + idx * 0.2 ? st.col : "#2b251e";
-      ctx.lineWidth = 1.4;
-      roundRect(ctx, rx, cy, rw, 88, 12);
+      ctx.strokeStyle = p > k * 0.25 ? b.col : C_BORDER;
+      ctx.lineWidth = 1.5;
+      rrect(ctx, rx, y, rw, 84, 12);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = st.col;
-      ctx.font = "600 14px 'Inter', sans-serif";
+      ctx.fillStyle = b.col;
+      ctx.font = "700 14.5px 'Inter', sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText(st.title, rx + 20, cy + 30);
+      ctx.fillText(b.title, rx + 20, y + 30);
       ctx.fillStyle = C_MUTED;
-      ctx.font = "400 12.5px 'Inter', sans-serif";
-      ctx.fillText(st.body.slice(0, 74), rx + 20, cy + 54);
-      if (st.body.length > 74) ctx.fillText(st.body.slice(74), rx + 20, cy + 72);
+      ctx.font = "400 13px 'Inter', sans-serif";
+      ctx.fillText(b.text, rx + 20, y + 56);
     });
   }
 
-  // ----------------------------------------------------------- SCENE 4: Forgery + Fast Scanner Catch
+  // ----------------------------------------------------------- PART 4: Scanning Check Spots Fake Box
   function drawScene4(ctx, W, H, p) {
-    const gx = 48, gy = 116, gs = 290;
-    const attackT = ease(clamp01(p * 3.2));
-    const scanT = clamp01((p - 0.22) / 0.68);
+    const gx = 48, gy = 114, gs = 290;
+    const cutP = ease(clamp01(p * 3.0));
+    const scanP = clamp01((p - 0.2) / 0.7);
+    const dx = gx + 76, dy = gy + 82, ds = 114;
 
     ctx.save();
-    roundRect(ctx, gx, gy, gs, gs, 12);
+    rrect(ctx, gx, gy, gs, gs, 12);
     ctx.clip();
     drawPhoto(ctx, gx, gy, gs, 0);
-
-    // Cutout damage box stamps down
-    const dx = gx + 76, dy = gy + 84, ds = 112;
-    if (attackT > 0.02) {
-      ctx.fillStyle = `rgba(12, 10, 9, ${0.95 * attackT})`;
+    if (cutP > 0.02) {
+      ctx.fillStyle = `rgba(12,10,8,${0.95 * cutP})`;
       ctx.fillRect(dx, dy, ds, ds);
     }
-
-    // Sweeping check bar
-    if (p > 0.22) {
-      const scanY = gy + gs * scanT;
-      ctx.strokeStyle = C_AMBER;
+    if (p > 0.2) {
+      const sy = gy + gs * scanP;
+      ctx.strokeStyle = C_GOLD;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(gx, scanY);
-      ctx.lineTo(gx + gs, scanY);
+      ctx.moveTo(gx, sy);
+      ctx.lineTo(gx + gs, sy);
       ctx.stroke();
-
-      // Highlight damaged box in glowing red once scanner reaches it
-      if (scanY > dy) {
+      if (sy > dy) {
+        ctx.fillStyle = "rgba(251, 113, 133, 0.28)";
+        ctx.fillRect(dx, dy, ds, Math.min(ds, sy - dy));
         ctx.strokeStyle = C_BAD;
         ctx.lineWidth = 3;
         ctx.strokeRect(dx, dy, ds, ds);
@@ -469,121 +408,125 @@
     }
     ctx.restore();
 
-    roundRect(ctx, gx, gy, gs, gs, 12);
-    ctx.strokeStyle = scanT > 0.5 ? C_BAD : "#3f382e";
+    rrect(ctx, gx, gy, gs, gs, 12);
+    ctx.strokeStyle = scanP > 0.5 ? C_BAD : C_BORDER;
     ctx.lineWidth = 1.6;
     ctx.stroke();
 
-    ctx.fillStyle = scanT > 0.4 ? C_BAD : C_GOLD;
-    ctx.font = "600 13px 'Inter', sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText(scanT > 0.4 ? "✕ Fake Box Caught Instantly!" : "Checking Every Photo Lock…", gx, gy + gs + 26);
-
-    // Right side: Clear Check Result & Grover Radar Bar Chart
-    const rx = 382, ry = 116, rw = 538, rh = 290;
+    // Right: Friendly Safe vs Damaged visual result
+    const rx = 380, rw = 536;
     ctx.fillStyle = C_CARD;
-    ctx.strokeStyle = "#2f2922";
-    roundRect(ctx, rx, ry, rw, rh, 14);
+    ctx.strokeStyle = C_BORDER;
+    rrect(ctx, rx, 114, rw, 290, 14);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "#fff";
-    ctx.font = "600 15px 'Inter', sans-serif";
-    ctx.fillText("How We Spot Fake Edits Instantly", rx + 22, ry + 34);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "700 16px 'Inter', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("How the app tells real areas from fake edits", rx + 24, 152);
+
+    // Clean vs Broken boxes
+    ctx.fillStyle = "rgba(74, 222, 128, 0.12)";
+    ctx.strokeStyle = C_OK;
+    rrect(ctx, rx + 24, 180, 232, 140, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = C_OK;
+    ctx.font = "700 28px 'Inter', sans-serif";
+    ctx.fillText("✓ Safe", rx + 42, 226);
+    ctx.fillStyle = C_TEXT;
+    ctx.font = "600 13.5px 'Inter', sans-serif";
+    ctx.fillText("95% untouched sky & body", rx + 42, 258);
     ctx.fillStyle = C_MUTED;
     ctx.font = "400 12.5px 'Inter', sans-serif";
-    ctx.fillText("Original untouched blocks match their lock (Green). Edited squares fail (Red)!", rx + 22, ry + 58);
+    ctx.fillText("Padlocks match perfectly.", rx + 42, 282);
 
-    const bars = 12;
-    const groverBoost = ease(clamp01((p - 0.35) * 1.8));
-    const baseY = ry + 236;
-    for (let i = 0; i < bars; i++) {
-      const isBad = i === 5 || i === 6;
-      const bh = isBad ? lerp(20, 146, groverBoost) : lerp(22, 10, groverBoost);
-      const bx = rx + 28 + i * 41;
-      ctx.fillStyle = isBad ? C_BAD : "#2e2923";
-      roundRect(ctx, bx, baseY - bh, 26, bh, 5);
-      ctx.fill();
-      if (isBad && groverBoost > 0.5) {
-        ctx.fillStyle = C_BAD;
-        ctx.font = "700 10px 'Inter', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("FAKE", bx + 13, baseY + 16);
-      }
-    }
-    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(251, 113, 133, 0.14)";
+    ctx.strokeStyle = scanP > 0.45 ? C_BAD : C_BORDER;
+    rrect(ctx, rx + 276, 180, 236, 140, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = C_BAD;
+    ctx.font = "700 28px 'Inter', sans-serif";
+    ctx.fillText("✕ Altered!", rx + 294, 226);
+    ctx.fillStyle = C_TEXT;
+    ctx.font = "600 13.5px 'Inter', sans-serif";
+    ctx.fillText("5% cut-out rectangle", rx + 294, 258);
+    ctx.fillStyle = C_MUTED;
+    ctx.font = "400 12.5px 'Inter', sans-serif";
+    ctx.fillText("Painted red immediately!", rx + 294, 282);
+
     ctx.fillStyle = C_GOLD;
-    ctx.font = "500 11.5px 'Inter', sans-serif";
-    ctx.fillText(sim.paperLabels ? "Grover 15q search boosts altered pixels 15.38× in 3 steps" : "Quantum radar zooms straight onto every edited pixel!", rx + 22, ry + rh - 18);
+    ctx.font = "500 12.5px 'Inter', sans-serif";
+    ctx.fillText(
+      sim.paperLabels ? "15-qubit Grover search highlights mismatched locks" : "You see exact red highlights right where someone tampered.",
+      rx + 24,
+      368
+    );
   }
 
-  // ----------------------------------------------------------- SCENE 5: Flyback Healing + Summary
+  // ----------------------------------------------------------- PART 5: Rescue Backups Fly Back & Heal
   function drawScene5(ctx, W, H, p) {
-    const gx = 48, gy = 116, gs = 290;
-    const dx = gx + 76, dy = gy + 84, ds = 112;
-    const healP = ease(clamp01((p - 0.16) / 0.62));
+    const gx = 48, gy = 114, gs = 290;
+    const dx = gx + 76, dy = gy + 82, ds = 114;
+    const healP = ease(clamp01((p - 0.14) / 0.65));
 
-    // Photo starts with black cutout and heals smoothly back!
     ctx.save();
-    roundRect(ctx, gx, gy, gs, gs, 12);
+    rrect(ctx, gx, gy, gs, gs, 12);
     ctx.clip();
     drawPhoto(ctx, gx, gy, gs, 0);
-    const holeAlpha = 1 - healP;
-    if (holeAlpha > 0.01) {
-      ctx.fillStyle = `rgba(12, 10, 9, ${holeAlpha})`;
+    if (1 - healP > 0.01) {
+      ctx.fillStyle = `rgba(12,10,8,${1 - healP})`;
       ctx.fillRect(dx, dy, ds, ds);
-      ctx.strokeStyle = `rgba(74, 222, 128, ${0.85 * Math.sin(healP * Math.PI)})`;
+      ctx.strokeStyle = `rgba(74,222,128,${Math.sin(healP * Math.PI)})`;
       ctx.lineWidth = 3;
       ctx.strokeRect(dx, dy, ds, ds);
     }
     ctx.restore();
 
-    roundRect(ctx, gx, gy, gs, gs, 12);
+    rrect(ctx, gx, gy, gs, gs, 12);
     ctx.strokeStyle = healP > 0.85 ? C_OK : C_GOLD;
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Flying rescue orbs from partner blocks back to damaged spot
     if (healP > 0.02 && healP < 0.96) {
-      drawOrb(ctx, lerp(gx + 245, dx + ds / 2, healP), lerp(gy + 42, dy + ds / 2, healP), C_OK, 7);
-      drawOrb(ctx, lerp(gx + 215, dx + ds / 2, healP), lerp(gy + 245, dy + ds / 2, healP), C_AMBER, 7);
+      drawOrb(ctx, lerp(gx + 244, dx + ds / 2, healP), lerp(gy + 40, dy + ds / 2, healP), C_OK, 7.5);
+      drawOrb(ctx, lerp(gx + 215, dx + ds / 2, healP), lerp(gy + 246, dy + ds / 2, healP), C_GOLD, 7.5);
     }
 
     ctx.fillStyle = healP > 0.85 ? C_OK : C_GOLD;
-    ctx.font = "600 13px 'Inter', sans-serif";
+    ctx.font = "700 13.5px 'Inter', sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText(healP > 0.85 ? `✓ ${Math.round(healP * 100)}% Restored Back to Normal!` : "Flying Backups Home to Rebuild…", gx, gy + gs + 26);
+    ctx.fillText(healP > 0.85 ? `✓ ${Math.round(healP * 100)}% Healed & Restored!` : "Copying Spare Backups Back Into the Hole...", gx, gy + gs + 28);
 
-    // Right: Crisp Takeaways Card
-    const rx = 382, ry = 116, rw = 538, rh = 290;
+    const rx = 380, rw = 536;
     ctx.fillStyle = C_CARD;
-    ctx.strokeStyle = healP > 0.85 ? C_OK : "#2f2922";
-    ctx.lineWidth = 1.6;
-    roundRect(ctx, rx, ry, rw, rh, 14);
+    ctx.strokeStyle = healP > 0.85 ? C_OK : C_BORDER;
+    rrect(ctx, rx, 114, rw, 290, 14);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = C_GOLD;
-    ctx.font = "600 12px 'Inter', sans-serif";
-    ctx.fillText("WHAT HAPPENED BEHIND THE SCENES", rx + 24, ry + 34);
+    ctx.font = "700 12px 'Inter', sans-serif";
+    ctx.fillText("DONE AUTOMATICALLY IN MILLISECONDS", rx + 24, 150);
 
-    const bullets = [
-      { icon: "✓", col: C_OK, title: "1. Damaged Spot Located", desc: "The hidden fingerprint failed only inside the tampered rectangle." },
-      { icon: "✓", col: C_AMBER, title: "2. Hidden Copies Found Elsewhere", desc: "Safe partner tiles around the photo delivered their stored backups." },
-      { icon: "✓", col: C_VIOLET, title: "3. Missing Picture Rebuilt", desc: "Missing pixels were reconstructed cleanly — almost good as new!" },
-      { icon: "✓", col: C_CREAM, title: "4. AI Detective Ready", desc: "An AI model can even identify what tool made the fake edit." },
+    const steps = [
+      { t: "1. Spotted broken padlocks", d: "Found only the tampered box without touching clean sky.", col: C_OK },
+      { t: "2. Fetched spare backups", d: "Read hidden wing & fuselage details from safe corners.", col: C_GOLD },
+      { t: "3. Rebuilt missing pixels", d: "Painted back the real picture so you keep the full photo.", col: C_SKY },
     ];
-    bullets.forEach((b, k) => {
-      const by = ry + 62 + k * 54;
-      ctx.fillStyle = b.col;
-      ctx.font = "700 15px 'Inter', sans-serif";
-      ctx.fillText(b.icon, rx + 24, by + 10);
-      ctx.fillStyle = "#fff";
-      ctx.font = "600 13.5px 'Inter', sans-serif";
-      ctx.fillText(b.title, rx + 50, by + 10);
+    steps.forEach((s, i) => {
+      const y = 186 + i * 70;
+      ctx.fillStyle = s.col;
+      ctx.font = "700 16px 'Inter', sans-serif";
+      ctx.fillText("✓", rx + 24, y);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "600 14px 'Inter', sans-serif";
+      ctx.fillText(s.t, rx + 50, y);
       ctx.fillStyle = C_MUTED;
-      ctx.font = "400 12px 'Inter', sans-serif";
-      ctx.fillText(b.desc, rx + 50, by + 29);
+      ctx.font = "400 13px 'Inter', sans-serif";
+      ctx.fillText(s.d, rx + 50, y + 22);
     });
   }
 
@@ -601,16 +544,13 @@
 
     ctx.fillStyle = C_BG;
     ctx.fillRect(0, 0, W, H);
-    const grad = ctx.createRadialGradient(W * 0.78, H * 0.14, 10, W * 0.78, H * 0.14, 420);
-    grad.addColorStop(0, "rgba(218, 154, 78, 0.14)");
-    grad.addColorStop(1, "transparent");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
 
-    const idx = Math.min(SCENES.length - 1, Math.floor(sim.elapsed / SCENE_DUR));
-    const localP = clamp01((sim.elapsed - idx * SCENE_DUR) / SCENE_DUR);
+    const safeElapsed = Number.isFinite(sim.elapsed) ? Math.max(0, Math.min(TOTAL_DUR - 0.001, sim.elapsed)) : 0;
+    sim.elapsed = safeElapsed;
+    const idx = Math.max(0, Math.min(SCENES.length - 1, Math.floor(safeElapsed / SCENE_DUR)));
+    const localP = clamp01((safeElapsed - idx * SCENE_DUR) / SCENE_DUR);
 
-    drawStageHeader(ctx, W, idx, localP);
+    drawHeader(ctx, W, idx, localP);
     if (idx === 0) drawScene1(ctx, W, H, localP);
     else if (idx === 1) drawScene2(ctx, W, H, localP);
     else if (idx === 2) drawScene3(ctx, W, H, localP);
@@ -630,17 +570,18 @@
     if (fill) fill.style.width = `${pct}%`;
     const scrub = $("inside-scrub");
     if (scrub) scrub.setAttribute("aria-valuenow", String(Math.round(pct)));
+    const sc = SCENES[idx] || SCENES[0];
     const capTitle = $("inside-cap-title");
     const capText = $("inside-cap-text");
-    if (capTitle) capTitle.textContent = sim.paperLabels ? `${SCENES[idx].title} (${SCENES[idx].ref})` : SCENES[idx].title;
-    if (capText) capText.textContent = SCENES[idx].summary;
+    if (capTitle) capTitle.textContent = sim.paperLabels ? `${sc.title} (${sc.ref})` : sc.title;
+    if (capText) capText.textContent = sc.summary;
     document.querySelectorAll(".inside-chap").forEach((el, k) => el.classList.toggle("active", k === idx));
   }
 
   function tick(ts) {
     if (!sim.openFlag) return;
     if (sim.lastTs) {
-      const dt = Math.min(0.1, (ts - sim.lastTs) / 1000);
+      const dt = Math.max(0, Math.min(0.1, (ts - sim.lastTs) / 1000));
       if (sim.playing) {
         sim.elapsed += dt * sim.speed;
         if (sim.elapsed >= TOTAL_DUR) {
@@ -678,7 +619,7 @@
     open(ctxData) {
       buildChapters();
       if (ctxData) {
-        Object.assign(sim.data, ctxData);
+        if (ctxData.imageName) sim.imageName = ctxData.imageName;
         if (ctxData.coverUrl) {
           const im = new Image();
           im.onload = () => {
@@ -731,11 +672,12 @@
     togglePaperLabels() {
       sim.paperLabels = !sim.paperLabels;
       const btn = $("inside-labels");
-      if (btn) btn.textContent = sim.paperLabels ? "Paper Labels: On" : "Paper Labels: Off";
+      if (btn) btn.textContent = sim.paperLabels ? "Quantum Math: On" : "Quantum Math: Off";
       renderFrame();
     },
     scrubRatio(r) {
-      sim.elapsed = clamp01(r) * (TOTAL_DUR - 0.01);
+      const safeR = Number.isFinite(r) ? r : 0;
+      sim.elapsed = clamp01(safeR) * (TOTAL_DUR - 0.01);
       ensureLoop();
     },
   };

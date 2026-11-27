@@ -526,7 +526,14 @@ class DemoApp:
 # --------------------------------------------------------------------------- #
 # HTTP layer
 # --------------------------------------------------------------------------- #
-CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png"}
+CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".pdf": "application/pdf",
+}
 
 
 def make_handler(app: DemoApp):
@@ -543,7 +550,10 @@ def make_handler(app: DemoApp):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
         def _json(self, status: int, payload) -> None:
             self._send(status, json.dumps(payload, default=float).encode("utf-8"), "application/json")

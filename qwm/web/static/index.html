@@ -3,239 +3,212 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NEQR Quantum Watermarking</title>
+  <title>PhotoShield — NEQR Quantum Watermarking</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="site-frame">
-    <!-- Hero Stage -->
-    <section class="hero-stage" id="top">
-      <div class="hero-backdrop" aria-hidden="true">
-        <div class="sun-window"></div>
-        <div class="sun-rays"></div>
-        <div class="hero-vignette"></div>
-      </div>
-
-      <header class="hero-header">
+  <div class="app-shell">
+    <!-- Clean Sticky Navigation -->
+    <header class="topbar">
+      <div class="topbar-inner">
         <a class="brand" href="#top">
-          <svg class="starburst" viewBox="0 0 32 32" aria-hidden="true">
-            <g stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
-              <line x1="16" y1="2" x2="16" y2="30"/>
-              <line x1="2" y1="16" x2="30" y2="16"/>
-              <line x1="6.1" y1="6.1" x2="25.9" y2="25.9"/>
-              <line x1="25.9" y1="6.1" x2="6.1" y2="25.9"/>
-            </g>
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 2L4 5.5v6c0 5.2 3.4 9.9 8 11.5 4.6-1.6 8-6.3 8-11.5v-6L12 2z"/>
+            <path d="M9 12l2 2 4-4"/>
           </svg>
-          <span class="brand-text">Photo Proof &amp; Auto-Fix<small>Powered by NEQR Quantum Watermarking</small></span>
+          <div>
+            <strong>PhotoShield</strong>
+            <span>Catch fake photo edits &amp; heal damage</span>
+          </div>
         </a>
 
-        <div class="header-pills">
-          <button class="cream-circle" id="hero-demo-icon" type="button" title="Run Instant Demo">&#9654;</button>
-          <button class="cream-circle" id="hero-paper-icon" type="button" title="Research Paper Data">&#8862;</button>
-          <button class="cream-circle" id="theme" type="button" title="Switch Light / Dark">&#9680;</button>
-          <a class="cream-circle" href="https://doi.org/10.1016/j.array.2026.101035" target="_blank" rel="noopener" title="Research Paper DOI">&#8599;</a>
+        <nav class="topnav" aria-label="Page sections">
+          <a href="#studio-sec">1. Protect</a>
+          <a href="#tamper-sec">2. Test Edit</a>
+          <a href="#tamper-sec">3. Result</a>
+          <a href="#research-paper-sec">Base Paper</a>
+        </nav>
+
+        <div class="top-actions">
+          <button class="btn-soft" id="nav-inside-btn" type="button">Inside Working</button>
+          <button class="btn-soft" id="theme" type="button" aria-label="Switch theme">Theme</button>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <div class="hero-body">
-        <div class="hero-copy">
-          <h1>Stop photo <span class="dim">tampering</span><br>automatically</h1>
-          <div class="what-box">
-            <strong>What this web app does:</strong>
-            <ul>
-              <li><b>1. Locks your photo invisibly</b> &mdash; your picture looks identical to the eye.</li>
-              <li><b>2. Spots fake edits</b> &mdash; catches objects removed, drawn over, or pasted in.</li>
-              <li><b>3. Heals cut areas back</b> &mdash; restores missing parts from hidden backup pieces.</li>
-            </ul>
-          </div>
+    <main class="container" id="top">
+      <!-- Clear Beginner Hero Intro -->
+      <section class="intro-card">
+        <div class="intro-main">
+          <span class="eyebrow">Simple Photo Protection</span>
+          <h1>Lock any photo invisibly. Catch fake edits &amp; fix missing parts.</h1>
+          <p class="intro-lead">
+            Protect any picture in one click. If someone later cuts out, draws over, or pastes something fake into your photo, this app finds the exact edit and repairs the missing area automatically.
+          </p>
 
-          <div class="hero-cta-row">
-            <button class="btn-cream" id="embed" type="button">Step 1: Protect Photo &#8599;</button>
-            <button class="btn-outline-light" id="run-full" type="button">Watch Auto-Demo (Break &amp; Fix) &#9654;</button>
-            <button class="btn-outline-light" id="show-inside-btn" type="button">Show Inside Working &#9654;</button>
-            <span class="live-chip"><i class="live-dot"></i><span id="status">Connecting&hellip;</span></span>
-          </div>
-        </div>
-
-        <aside class="hero-rail">
-          <nav class="rail-nav" aria-label="Primary sections">
-            <a href="#studio-sec" class="active" data-view="dashboard">Step 1 &middot; Protect</a>
-            <a href="#tamper-sec" data-view="dashboard">Step 2 &middot; Break &amp; Fix</a>
-            <a href="#quantum-sec" data-view="dashboard">Step 3 &middot; AI Detective</a>
-            <a href="#inside-view" id="nav-inside" data-view="inside">Show Inside Working</a>
-            <a href="#paper-view" id="nav-paper" data-view="paper">Research Tables</a>
-          </nav>
-
-          <div class="photo-stack-wrap">
-            <a href="#studio-sec" class="stack-label" id="jump-upload">Pick sample or upload photo &#8599;</a>
-            <div class="avatar-stack">
-              <button class="sample-dot active" data-sample="airplane" type="button" title="Airplane (Default)">A</button>
-              <button class="sample-dot" data-sample="peppers" type="button" title="Peppers">P</button>
-              <button class="sample-dot" data-sample="moon" type="button" title="Moon">M</button>
-              <label class="cream-plus" title="Upload Your Own Photo">+<input type="file" id="upload" accept="image/*"></label>
+          <div class="steps-summary">
+            <div class="step-pill">
+              <span class="step-num">1</span>
+              <div>
+                <b>Invisible Lock</b>
+                <small>Looks 100% identical to your eyes</small>
+              </div>
+            </div>
+            <div class="step-pill">
+              <span class="step-num">2</span>
+              <div>
+                <b>Catch Fake Edits</b>
+                <small>Highlights altered areas in red</small>
+              </div>
+            </div>
+            <div class="step-pill">
+              <span class="step-num">3</span>
+              <div>
+                <b>Auto-Heal Damage</b>
+                <small>Restores cut spots from backups</small>
+              </div>
             </div>
           </div>
+        </div>
+
+        <aside class="intro-cta-box">
+          <div class="status-line">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="status">Starting up&hellip;</span>
+          </div>
+          <button class="btn-primary btn-block" id="run-full" type="button">&#9654; Run Quick Demo (Break &amp; Auto-Fix)</button>
+          <button class="btn-outline btn-block" id="show-inside-btn" type="button">Show Inside Working (Visual Guide)</button>
+          <p class="tiny-hint">Try it immediately on the sample <b>Airplane</b> photo below, or upload your own picture.</p>
         </aside>
-      </div>
-
-      <!-- Anchored 4-Tile Strip -->
-      <div class="hero-tiles">
-        <a href="#studio-sec" class="tile tile-media" title="View your protected photo">
-          <img id="hero-img" alt="Protected photo preview">
-          <span class="tile-tag">Your Safe Photo</span>
-        </a>
-
-        <div class="tile tile-black">
-          <span class="quote-mark" aria-hidden="true">&ldquo;</span>
-          <p id="hero-story">This app puts a hidden safety net inside your picture. Nobody can see it, yet if part of the photo is cut or painted over, we highlight it and heal it right back.</p>
-        </div>
-
-        <div class="tile tile-action" id="tile-tamper-trigger" role="button" tabindex="0" title="Click to test a fake cut and watch automatic healing">
-          <img id="tile-attack-img" alt="Tamper and repair preview">
-          <div class="tile-action-scrim"></div>
-          <span class="play-orb" aria-hidden="true">&#9654;</span>
-          <span class="tile-tag">Click to Cut &amp; Auto-Heal</span>
-        </div>
-
-        <div class="tile tile-white">
-          <div>
-            <h2 id="tile4-title">Protected<br>Ready</h2>
-            <p class="tile4-meta" id="tile4-sub">Looks 98.4% identical &middot; Self-healing on</p>
-          </div>
-          <div class="tile4-foot">
-            <a href="#studio-sec" class="arrow-link" id="tile4-link">Go to Steps &#8599;</a>
-            <svg class="starburst dark" viewBox="0 0 32 32" aria-hidden="true">
-              <g stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-                <line x1="16" y1="2" x2="16" y2="30"/>
-                <line x1="2" y1="16" x2="30" y2="16"/>
-                <line x1="6.1" y1="6.1" x2="25.9" y2="25.9"/>
-                <line x1="25.9" y1="6.1" x2="6.1" y2="25.9"/>
-              </g>
-            </svg>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Main 3-Step Beginner Workspace -->
-    <main class="studio-main" id="dashboard-view">
-      <div class="guide-banner">
-        <div class="guide-step"><span>Step 1</span><b>Add Invisible Lock</b><small>Pick a photo or upload yours to hide secret recovery clues inside.</small></div>
-        <div class="guide-step"><span>Step 2</span><b>Fake an Edit</b><small>Cut a box or draw over it to pretend someone tampered with it.</small></div>
-        <div class="guide-step"><span>Step 3</span><b>Catch &amp; Fix</b><small>Red shows what was edited. Beside it is your healed photo!</small></div>
-        <button class="btn-dark" id="banner-inside-btn" type="button">Show Inside Working &#9654;</button>
-      </div>
-
-      <!-- STEP 1: PROTECT PHOTO -->
-      <section class="editorial-sec" id="studio-sec">
-        <div class="sec-head">
-          <div>
-            <span class="kicker">Step 1 of 3 &middot; Protect Photo</span>
-            <h2>Add an invisible safety lock to your photo</h2>
-            <p class="sec-explain">Nothing visible changes to the naked eye. Tiny invisible backup pieces are tucked into the photo so damaged parts can later be rebuilt.</p>
-          </div>
-          <div class="sec-tools">
-            <select id="image" aria-label="Test image"></select>
-            <label class="pill-btn">Upload My Photo<input type="file" id="upload-dup" accept="image/*" hidden></label>
-            <button class="pill-btn ghost" id="clear-upload" type="button" hidden>Back to Sample</button>
-          </div>
-        </div>
-
-        <div class="kpi-strip">
-          <div class="kpi-box">
-            <span class="kpi-lbl">Looks Same to Eye?</span>
-            <strong id="m-ssim-pct">98.4%</strong><small>Visual match</small>
-          </div>
-          <div class="kpi-box">
-            <span class="kpi-lbl">Auto-Heal Shield</span>
-            <strong id="hero-side">Active</strong><small>Can repair damage</small>
-          </div>
-          <div class="kpi-box">
-            <span class="kpi-lbl">Quality Score</span>
-            <strong id="hero-psnr">44.5</strong><small>dB clarity <span class="kpi-badge" id="hero-delta">+0.3 dB</span></small>
-          </div>
-          <div class="kpi-action-box">
-            <button class="btn-dark" id="embed-sec-btn" type="button">Protect Photo Now &#8594;</button>
-          </div>
-        </div>
-
-        <div class="preset-cards" id="simple-presets">
-          <button type="button" class="preset-card active" data-preset="recovery-dual">
-            <b>Full Safety + Auto-Fix (Recommended)</b>
-            <span>Catches fake edits AND automatically restores cut or erased areas.</span>
-          </button>
-          <button type="button" class="preset-card" data-preset="keyed-opt">
-            <b>Highest Picture Clarity</b>
-            <span>Spots every fake edit cleanly with maximum sharpness (spot only).</span>
-          </button>
-          <button type="button" class="preset-card" data-preset="paper">
-            <b>Original Research Paper Mode</b>
-            <span>Runs the classic baseline method from Sahu et al. (Array 2026).</span>
-          </button>
-        </div>
-
-        <details class="quiet-details" id="advanced-modes-details">
-          <summary>Advanced: Pick any of the 7 algorithms or customize your secret password</summary>
-          <div class="modes" id="modes" style="margin-top:12px"></div>
-          <div class="inline-fields" id="keyrow">
-            <label class="field">Secret password <input id="key" value="demo-key" autocomplete="off" spellcheck="false"></label>
-            <label class="field">Photo ID <input id="nonce" placeholder="auto" autocomplete="off" spellcheck="false"></label>
-          </div>
-        </details>
-
-        <div class="images three" id="embed-out" hidden>
-          <figure>
-            <div class="pick"><img id="cover" alt="cover"><div id="pickbox" class="pickbox" hidden></div></div>
-            <figcaption><span>1. Original Photo (click anywhere to peek at pixels)</span></figcaption>
-          </figure>
-          <figure>
-            <img id="watermarked" alt="watermarked">
-            <figcaption><span>2. Protected Photo (Download &amp; Share)</span><a id="dl-watermarked" download="watermarked.png" href="#">Save PNG &darr;</a></figcaption>
-          </figure>
-          <figure>
-            <img id="difference" alt="difference">
-            <figcaption><span>3. Hidden Lock Pattern (&times;64 zoomed)</span></figcaption>
-          </figure>
-        </div>
-        <div class="chips" id="embed-metrics"></div>
       </section>
 
-      <!-- STEP 2 & STEP 3: TEST FAKE EDIT & WATCH AUTO-HEAL -->
-      <section class="editorial-sec two-col" id="tamper-sec">
-        <div class="panel" id="step2">
-          <div class="panel-head">
+      <!-- STEP 1: PICK PHOTO & PROTECT -->
+      <section class="card" id="studio-sec">
+        <div class="card-head">
+          <div>
+            <span class="step-tag">Step 1 of 3</span>
+            <h2>Pick a photo &amp; add an invisible safety lock</h2>
+            <p class="sub">Nothing visible changes. Tiny hidden backup pieces are saved inside the photo so it can heal itself later.</p>
+          </div>
+          <button class="btn-primary" id="embed" type="button">Protect Photo Now</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="sample-pills" role="group" aria-label="Sample photos">
+            <span class="tool-lbl">Photo:</span>
+            <button class="sample-dot active" data-sample="airplane" type="button">Airplane</button>
+            <button class="sample-dot" data-sample="peppers" type="button">Peppers</button>
+            <button class="sample-dot" data-sample="moon" type="button">Moon</button>
+            <span class="tool-lbl">More:</span>
+            <select id="image" aria-label="More sample photos" class="compact-select"></select>
+            <label class="btn-soft upload-lbl">
+              Upload My Photo
+              <input type="file" id="upload" accept="image/*" hidden>
+            </label>
+            <button class="btn-soft" id="clear-upload" type="button" hidden>Use Sample Instead</button>
+          </div>
+
+          <div class="mode-pills" role="group" aria-label="Protection style">
+            <span class="tool-lbl">Protection:</span>
+            <button type="button" class="preset-card active" data-preset="recovery-dual">Protect + Auto-Heal (Best)</button>
+            <button type="button" class="preset-card" data-preset="keyed-opt">Spot Edits Only</button>
+          </div>
+        </div>
+
+        <div class="compare-grid" id="embed-out">
+          <figure class="photo-card">
+            <div class="photo-wrap">
+              <img id="cover" alt="Original unprotected photo">
+              <div id="pickbox" class="pickbox" hidden></div>
+            </div>
+            <figcaption>
+              <strong>Original Photo</strong>
+              <span class="cap-note">Before locking</span>
+            </figcaption>
+          </figure>
+
+          <figure class="photo-card highlight">
+            <div class="photo-wrap">
+              <img id="watermarked" alt="Protected watermarked photo">
+            </div>
+            <figcaption>
+              <div>
+                <strong>Protected Photo</strong>
+                <span class="match-badge" id="m-ssim-pct">98.4% Identical to Eye &middot; Locked</span>
+              </div>
+              <a class="btn-save" id="dl-watermarked" download="protected_photo.png" href="#">Save PNG &darr;</a>
+            </figcaption>
+          </figure>
+        </div>
+
+        <!-- Hidden by default so beginners see zero clutter -->
+        <details class="tech-drawer" id="advanced-modes-details">
+          <summary>Technical details &amp; research algorithms (PSNR / SSIM, custom password, difference view)</summary>
+          <div class="tech-drawer-body">
+            <div class="chips" id="embed-metrics"></div>
+            <div class="diff-preview">
+              <figure class="photo-card mini">
+                <img id="difference" alt="Amplified watermark pattern">
+                <figcaption><strong>Hidden Lock Pattern (&times;64 zoomed)</strong><span class="cap-note">Invisible to human eyes</span></figcaption>
+              </figure>
+              <div class="tech-controls">
+                <div class="inline-fields" id="keyrow">
+                  <label class="field">Secret password <input id="key" value="demo-key" autocomplete="off" spellcheck="false"></label>
+                  <label class="field">Photo ID <input id="nonce" placeholder="auto" autocomplete="off" spellcheck="false"></label>
+                </div>
+                <div class="modes" id="modes"></div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- STEP 2 & STEP 3: BREAK PHOTO & SEE CATCH + HEAL -->
+      <section class="two-col" id="tamper-sec">
+        <!-- STEP 2 -->
+        <div class="card" id="step2">
+          <div class="card-head tight">
             <div>
-              <span class="kicker">Step 2 of 3 &middot; Pretend Someone Edited It</span>
-              <h3>Cut, draw, or paste over the photo</h3>
-              <p class="sec-explain">Click <b>Delete a Box</b> or draw on the canvas below. Step 3 right next to this will catch the fake area and repair it.</p>
+              <span class="step-tag">Step 2 of 3</span>
+              <h2>Pretend someone edited your photo</h2>
+              <p class="sub">Click a quick edit below or draw directly on the picture with your mouse.</p>
             </div>
           </div>
 
-          <div class="quick-attacks" style="margin-bottom:14px">
-            <button class="btn-dark" id="quick-blackout" type="button">Delete a Box (Test) &#9654;</button>
-            <button class="pill-btn" id="quick-splice" type="button">Paste a Fake Patch</button>
-            <button class="pill-btn ghost" id="none-apply" type="button">Reset Clean</button>
+          <div class="action-row">
+            <button class="btn-primary" id="quick-blackout" type="button">&#9632; Erase a Box (Test)</button>
+            <button class="btn-soft" id="quick-splice" type="button">Paste Fake Object</button>
+            <button class="btn-soft" id="none-apply" type="button">Reset Clean</button>
           </div>
 
           <div class="tabs" role="tablist">
-            <button class="tab active" data-tab="paint">Draw With Mouse</button>
-            <button class="tab" data-tab="local">Other Fake Edits</button>
-            <button class="tab" data-tab="global">Blur / JPEG / Resize</button>
+            <button class="tab active" data-tab="paint" type="button">Draw on Photo</button>
+            <button class="tab" data-tab="local" type="button">Other Fake Edits</button>
+            <button class="tab" data-tab="global" type="button">Blur / JPEG / Rotate</button>
           </div>
 
           <div class="tabpane" data-pane="paint">
-            <div class="paint-row">
-              <div class="paintbox"><canvas id="canvas" width="256" height="256"></canvas></div>
+            <div class="paint-workspace">
+              <div class="paintbox">
+                <canvas id="canvas" width="256" height="256"></canvas>
+                <span class="canvas-tip">Drag here with your mouse to scribble a fake edit</span>
+              </div>
               <div class="paint-tools">
-                <label class="field">Brush size <input type="range" id="brush" min="2" max="24" value="8"></label>
-                <div class="swatches" id="swatches">
-                  <button class="sw active" data-v="255" style="background:#fff" aria-label="white"></button>
-                  <button class="sw" data-v="128" style="background:#808080" aria-label="grey"></button>
-                  <button class="sw" data-v="0" style="background:#000" aria-label="black"></button>
+                <label class="field-col">
+                  <span>Brush Size</span>
+                  <input type="range" id="brush" min="2" max="24" value="10">
+                </label>
+                <div>
+                  <span class="tool-lbl-block">Ink Color</span>
+                  <div class="swatches" id="swatches">
+                    <button class="sw active" data-v="255" style="background:#ffffff" type="button" title="White"></button>
+                    <button class="sw" data-v="128" style="background:#808080" type="button" title="Grey"></button>
+                    <button class="sw" data-v="0" style="background:#111111" type="button" title="Black"></button>
+                  </div>
                 </div>
-                <div class="row-gap">
-                  <button class="pill-btn ghost" id="paint-reset" type="button">Clear</button>
-                  <button class="btn-dark" id="paint-apply" type="button">Test My Drawing &#8594;</button>
+                <div class="stack-btns">
+                  <button class="btn-primary" id="paint-apply" type="button">Test My Drawing &rarr;</button>
+                  <button class="btn-soft" id="paint-reset" type="button">Clear Drawing</button>
                 </div>
               </div>
             </div>
@@ -243,131 +216,100 @@
 
           <div class="tabpane" data-pane="local" hidden>
             <div class="inline-fields">
-              <label class="field">Type <select id="local-name"></select></label>
-              <label class="field">Size <input type="range" id="local-frac" min="0.05" max="0.4" step="0.01" value="0.2"><span id="local-frac-v">0.20</span></label>
-              <button class="btn-dark" id="local-apply" type="button">Apply &#8594;</button>
+              <label class="field">Edit Type <select id="local-name"></select></label>
+              <label class="field">Area Size <input type="range" id="local-frac" min="0.05" max="0.4" step="0.01" value="0.2"><span id="local-frac-v">0.20</span></label>
+              <button class="btn-primary" id="local-apply" type="button">Apply Edit &rarr;</button>
             </div>
           </div>
 
           <div class="tabpane" data-pane="global" hidden>
             <div class="inline-fields">
               <label class="field">Effect <select id="global-name"></select></label>
-              <label class="field" id="global-param-wrap"><span id="global-param-label">level</span> <input type="range" id="global-param"><span id="global-param-v"></span></label>
-              <button class="btn-dark" id="global-apply" type="button">Apply &#8594;</button>
+              <label class="field" id="global-param-wrap"><span id="global-param-label">Level</span> <input type="range" id="global-param"><span id="global-param-v"></span></label>
+              <button class="btn-primary" id="global-apply" type="button">Apply Effect &rarr;</button>
             </div>
           </div>
 
-          <div class="images one" id="attack-out" hidden>
-            <figure><img id="attacked" alt="attacked"><figcaption><span id="attack-caption">Photo waiting for your test edit</span></figcaption></figure>
+          <div class="tampered-strip" id="attack-out" hidden>
+            <img id="attacked" alt="Edited test photo">
+            <div>
+              <strong id="attack-caption">Untouched protected photo</strong>
+              <span class="cap-note">Sent automatically to Step 3 for verification &amp; repair.</span>
+            </div>
           </div>
         </div>
 
-        <div class="panel" id="step3">
-          <div class="panel-head">
+        <!-- STEP 3 -->
+        <div class="card" id="step3">
+          <div class="card-head tight">
             <div>
-              <span class="kicker">Step 3 of 3 &middot; Catch &amp; Fix</span>
-              <h3>Caught fake edits &amp; healed photo</h3>
-              <p class="sec-explain">Red highlights mark every edited square. Right beside it is the photo rebuilt automatically from hidden backups.</p>
+              <span class="step-tag">Step 3 of 3</span>
+              <h2>See fake edits caught &amp; fixed</h2>
+              <p class="sub">Red highlights mark edited areas. Beside it is your healed photo rebuilt from hidden backups.</p>
             </div>
-            <button class="btn-dark" id="verify" type="button">Check &amp; Fix &#8594;</button>
+            <button class="btn-soft" id="verify" type="button">Re-Check Photo</button>
           </div>
 
           <div id="verdict" class="verdict" hidden></div>
-          <div class="images two" id="verify-out" hidden>
-            <figure>
-              <img id="overlay" alt="tamper map">
-              <figcaption><span>Red = Where Photo Was Edited</span><a id="dl-overlay" download="tamper_map.png" href="#">Save Map &darr;</a></figcaption>
-            </figure>
-            <figure id="recovered-fig" hidden>
-              <img id="recovered" alt="repaired">
-              <figcaption><span id="recovered-caption">Healed Photo (Fixed!)</span><a id="dl-recovered" download="repaired.png" href="#">Save Fixed &darr;</a></figcaption>
-            </figure>
-          </div>
-          <p class="note" id="verify-note">Click "Delete a Box (Test)" in Step 2 to watch automatic detection and repair.</p>
-        </div>
-      </section>
 
-      <!-- STEP 4: AI DETECTIVE & SHOW INSIDE WORKING -->
-      <section class="editorial-sec two-col" id="quantum-sec">
-        <div class="panel" id="step4">
-          <div class="panel-head">
-            <div>
-              <span class="kicker">Extra &middot; AI Photo Detective</span>
-              <h3>Ask AI how the photo was edited</h3>
-              <p class="sec-explain">Trained AI examines tiny patterns across your picture to guess whether it was cut out, blurred, rotated, or JPEG-saved.</p>
-            </div>
-            <button class="btn-dark" id="classify" type="button">Guess Edit Type &#8594;</button>
+          <div class="result-placeholder" id="verify-note">
+            Click <b>Erase a Box (Test)</b> on the left, or draw on the picture to watch fake edits get caught and repaired automatically.
           </div>
 
-          <div class="ai-kpi">
-            <strong id="clf-top-pct">Ready</strong>
-            <span id="clf-top-lbl">Edit your photo first, then ask AI</span>
-            <span class="pill-badge" id="clf-ood-pill" hidden>Ready</span>
-          </div>
-          <p class="note" id="clf-info">Inspects 162 texture clues automatically.</p>
-          <div id="bars" class="bars"></div>
-        </div>
-
-        <div class="panel dark-panel" id="step5">
-          <div class="panel-head">
-            <div>
-              <span class="kicker light">Visual Explainer</span>
-              <h3>Want to see how this works inside?</h3>
-              <p class="note light" style="margin-top:4px">Watch a simple 5-part visual animation showing how pixels carry secret locks, hide backup clones, catch fakes, and heal damaged photos.</p>
-            </div>
-          </div>
-
-          <div class="row-gap" style="margin-bottom:14px">
-            <button class="btn-cream" id="step5-inside-btn" type="button">Show Inside Working &#9654;</button>
-            <button class="btn-outline-light" id="nisq-run" type="button">Test Quantum Noise &#8594;</button>
-          </div>
-
-          <div class="dark-kpis">
-            <div><strong id="stat-depth">5 Parts</strong><span>Simple visual story</span></div>
-            <div><strong id="stat-sup">100% Live</strong><span>Uses your photo</span></div>
-          </div>
-
-          <details class="quiet-details dark" id="quantum-details">
-            <summary>For Researchers: Live Qiskit block circuit, qubit trace &amp; NISQ noise table</summary>
-            <div class="inline-fields">
-              <label class="field">Gate error p2 <input type="range" id="nisq-p2" min="0" max="0.005" step="0.0005" value="0.0005"><span id="nisq-p2-v">0.0005</span></label>
-              <label class="field">Coherence T1 (&mu;s) <input type="range" id="nisq-t1" min="50" max="1500" step="50" value="300"><span id="nisq-t1-v">300</span></label>
-            </div>
-            <p class="note light" id="block-hint">Click any square on the Original Photo in Step 1 to simulate its live Qiskit circuit.</p>
-            <div class="tbl-wrap">
-              <table class="tbl" id="nisq-tbl" hidden><thead><tr><th>Circuit</th><th>Qubits</th><th>2Q CX</th><th>Depth</th><th>Dur (&mu;s)</th><th>P[exact]</th></tr></thead><tbody></tbody></table>
-            </div>
-            <div id="block-out" class="block-drawer" hidden>
-              <div class="block-grid">
-                <div>
-                  <h4>Block <span id="block-id"></span></h4>
-                  <table class="kv" id="block-kv"></table>
-                </div>
-                <div>
-                  <h4>Exact Simulators</h4>
-                  <div class="tbl-wrap"><table class="tbl" id="block-circuits"><thead><tr><th>Circuit</th><th>Qubits</th><th>Output</th></tr></thead><tbody></tbody></table></div>
-                </div>
+          <div class="compare-grid" id="verify-out" hidden>
+            <figure class="photo-card">
+              <div class="photo-wrap">
+                <img id="overlay" alt="Tampered regions highlighted in red">
               </div>
-              <h4>NEQR Block Circuit</h4>
-              <div class="neqr"><img id="neqr" alt="NEQR circuit"></div>
+              <figcaption>
+                <strong>Edited Area (Red)</strong>
+                <a class="btn-save" id="dl-overlay" download="tamper_map.png" href="#">Save &darr;</a>
+              </figcaption>
+            </figure>
+
+            <figure class="photo-card highlight" id="recovered-fig" hidden>
+              <div class="photo-wrap">
+                <img id="recovered" alt="Automatically healed photo">
+              </div>
+              <figcaption>
+                <div>
+                  <strong>Healed Photo</strong>
+                  <span class="match-badge" id="recovered-caption">Fixed automatically!</span>
+                </div>
+                <a class="btn-save" id="dl-recovered" download="healed_photo.png" href="#">Save &darr;</a>
+              </figcaption>
+            </figure>
+          </div>
+
+          <!-- Optional simple AI detective inside Step 3 bottom -->
+          <div class="ai-strip">
+            <div>
+              <strong>AI Edit Detective</strong>
+              <span id="clf-info">Guess which kind of edit was applied.</span>
             </div>
-          </details>
+            <button class="btn-soft" id="classify" type="button">Ask AI What Happened &rarr;</button>
+          </div>
+          <div id="ai-result-box" hidden>
+            <div class="ai-headline">
+              <strong id="clf-top-lbl">&ndash;</strong>
+              <span class="match-badge" id="clf-top-pct">&ndash;</span>
+            </div>
+            <div id="bars" class="bars"></div>
+          </div>
         </div>
       </section>
-    </main>
 
-    <!-- Inside Working Visual Story Cinema -->
-    <section class="studio-main" id="inside-view" hidden>
-      <div class="sec-head">
-        <div>
-          <span class="kicker">Visual Story &middot; Easy Mode</span>
-          <h2>Show Inside Working &mdash; How Your Photo Protects &amp; Heals Itself</h2>
-          <p class="sec-explain">A simple step-by-step animated explanation using your selected photo. Turn on "Paper Labels" below only if you want exact equations.</p>
+      <!-- VISUAL "SHOW INSIDE WORKING" CINEMA (Opens smoothly right on the page) -->
+      <section class="inside-card" id="inside-view" hidden>
+        <div class="inside-head">
+          <div>
+            <span class="eyebrow dark">Visual Guide &middot; Easy 5-Part Story</span>
+            <h2>Show Inside Working &mdash; How Your Photo Protects &amp; Heals Itself</h2>
+            <p class="inside-sub">Uses your currently selected photo in simple everyday pictures. Turn on &ldquo;Quantum Math&rdquo; only if you want equation names.</p>
+          </div>
+          <button class="btn-soft dark-btn" id="back-from-inside" type="button">Hide Animation &#10005;</button>
         </div>
-        <button class="btn-dark" id="back-from-inside" type="button">Back to Studio &#8594;</button>
-      </div>
 
-      <div class="inside-cinema">
         <canvas id="inside-canvas" width="960" height="480" aria-label="Animated visual explanation of quantum photo protection"></canvas>
 
         <div class="inside-scrub" id="inside-scrub" role="slider" aria-label="Animation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
@@ -377,53 +319,94 @@
         <div class="inside-transport">
           <div class="row-gap">
             <button class="btn-cream" id="inside-play" type="button">&#10074;&#10074; Pause</button>
-            <button class="pill-btn ghost dark-ctl" id="inside-prev" type="button">&lsaquo; Prev</button>
-            <button class="pill-btn ghost dark-ctl" id="inside-next" type="button">Next &rsaquo;</button>
-            <button class="pill-btn ghost dark-ctl" id="inside-replay" type="button">Replay &#8634;</button>
-            <button class="pill-btn ghost dark-ctl" id="inside-speed" type="button">1&times;</button>
-            <button class="pill-btn ghost dark-ctl" id="inside-labels" type="button">Paper Labels: Off</button>
+            <button class="btn-soft dark-btn" id="inside-prev" type="button">&lsaquo; Back</button>
+            <button class="btn-soft dark-btn" id="inside-next" type="button">Next &rsaquo;</button>
+            <button class="btn-soft dark-btn" id="inside-replay" type="button">Replay &#8634;</button>
+            <button class="btn-soft dark-btn" id="inside-speed" type="button">1&times;</button>
+            <button class="btn-soft dark-btn" id="inside-labels" type="button">Quantum Math: Off</button>
           </div>
-          <span class="inside-clock" id="inside-clock">Part 1 / 5 &middot; 0.0s / 27s</span>
+          <span class="inside-clock" id="inside-clock">Part 1 / 5</span>
         </div>
 
         <div class="inside-chapters" id="inside-chapters"></div>
 
         <div class="inside-caption">
-          <strong id="inside-cap-title">1. Breaking the Photo Into Tiny Squares</strong>
-          <p id="inside-cap-text">Loading live animation&hellip;</p>
+          <strong id="inside-cap-title">1. Tiny Invisible Lock Slots</strong>
+          <p id="inside-cap-text">Loading animation&hellip;</p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Research Paper Tables -->
-    <section class="studio-main" id="paper-view" hidden>
-      <div class="sec-head">
+      <!-- SHOW INSIDE WORKING INVITE CARD (Visible when animation is closed) -->
+      <section class="inside-banner" id="inside-invite">
         <div>
-          <span class="kicker">Research Paper Benchmarks</span>
-          <h2>Tables 9, 11 &amp; 21 + Extensions</h2>
+          <span class="step-tag">Behind the Scenes</span>
+          <h2>Curious how the photo remembers damaged pixels?</h2>
+          <p class="sub">Watch a beginner-friendly 25-second visual animation showing hidden locks, backup copies, red tamper detection, and automatic healing.</p>
         </div>
-        <button class="btn-dark" id="back-overview" type="button">Back to Studio &#8594;</button>
-      </div>
-      <div class="paper-grid">
-        <section class="panel">
-          <h3>Paper Circuit Budget (Table 21) vs v2 / v3</h3>
-          <div class="tbl-wrap"><table class="tbl light-tbl" id="paper-families-tbl"><thead><tr><th>Circuit</th><th>Family</th><th>Qubits</th><th>CNOTs</th><th>Depth</th></tr></thead><tbody></tbody></table></div>
-        </section>
-        <section class="panel">
-          <h3>2 bpp PSNR Limits &amp; Worked Block</h3>
-          <div class="tbl-wrap"><table class="tbl light-tbl" id="paper-bounds-tbl"><thead><tr><th>Method</th><th>MSE</th><th>PSNR (dB)</th></tr></thead><tbody></tbody></table></div>
-          <p class="note" id="paper-worked-note"></p>
-        </section>
-        <section class="panel">
-          <h3>Table 9 Fuchs-van de Graaf Check</h3>
-          <div class="tbl-wrap"><table class="tbl light-tbl" id="paper-t9-tbl"><thead><tr><th>Image</th><th>F</th><th>T</th><th>P</th><th>Status</th></tr></thead><tbody></tbody></table></div>
-        </section>
-        <section class="panel dark-panel">
-          <h3>FRQI vs NEQR Complexity (Table 11)</h3>
-          <div class="tbl-wrap"><table class="tbl" id="paper-comp-tbl"><thead><tr><th>Image Size</th><th>n</th><th>FRQI Ops</th><th>NEQR Ops (q=8)</th></tr></thead><tbody></tbody></table></div>
-        </section>
-      </div>
-    </section>
+        <button class="btn-primary" id="banner-inside-btn" type="button">&#9654; Show Inside Working</button>
+      </section>
+
+      <!-- AT LAST: RESEARCH BASE PAPER CARD (Opens in New Tab) -->
+      <footer class="paper-footer" id="research-paper-sec">
+        <div class="paper-footer-main">
+          <div>
+            <span class="eyebrow">Original Research Base Paper</span>
+            <h2>Read the Full Research Paper</h2>
+            <p class="sub">
+              Sahu, A. K., Dhar, S., Deb, S., Khaldi, A., Sahu, M., &amp; Setiadi, D. R. I. M. (2026).
+              <em>&ldquo;AI-assisted simulation-based quantum image watermarking using NEQR and reversible quantum logic.&rdquo;</em>
+              Array, Vol. 31, 101035.
+            </p>
+          </div>
+          <div class="paper-footer-actions">
+            <a class="btn-primary btn-lg" id="open-base-paper" href="/research-base-paper.pdf" target="_blank" rel="noopener noreferrer">
+              Show Research Base Paper (Opens in New Tab) &#8599;
+            </a>
+            <a class="btn-outline" href="https://doi.org/10.1016/j.array.2026.101035" target="_blank" rel="noopener noreferrer">
+              View Journal DOI &#8599;
+            </a>
+          </div>
+        </div>
+
+        <!-- Optional Researcher Lab tucked cleanly out of beginners' way -->
+        <details class="tech-drawer footer-tech" id="quantum-details">
+          <summary>For Researchers: Live Qiskit Block Circuit Inspector, NISQ Noise Simulator &amp; Benchmark Tables (9, 11, 21)</summary>
+          <div class="research-grid">
+            <div class="research-box">
+              <h3>Single 2&times;2 Block Qiskit Circuit Simulator</h3>
+              <p class="sub">Click any spot on the Original Photo in Step 1, or test gate noise below.</p>
+              <div class="inline-fields">
+                <label class="field">Gate error p2 <input type="range" id="nisq-p2" min="0" max="0.005" step="0.0005" value="0.0005"><span id="nisq-p2-v">0.0005</span></label>
+                <label class="field">Coherence T1 (&mu;s) <input type="range" id="nisq-t1" min="50" max="1500" step="50" value="300"><span id="nisq-t1-v">300</span></label>
+                <button class="btn-soft" id="nisq-run" type="button">Run NISQ Noise Check</button>
+              </div>
+              <p class="cap-note" id="block-hint">No 2&times;2 block clicked yet.</p>
+              <div class="tbl-wrap">
+                <table class="tbl" id="nisq-tbl" hidden><thead><tr><th>Circuit</th><th>Qubits</th><th>2Q CX</th><th>Depth</th><th>Dur (&mu;s)</th><th>P[exact]</th></tr></thead><tbody></tbody></table>
+              </div>
+              <div id="block-out" hidden>
+                <p class="cap-note"><strong>Block <span id="block-id"></span></strong></p>
+                <div class="tbl-wrap"><table class="tbl" id="block-kv"></table></div>
+                <div class="tbl-wrap"><table class="tbl" id="block-circuits"><thead><tr><th>Circuit</th><th>Qubits</th><th>Output</th></tr></thead><tbody></tbody></table></div>
+                <div class="neqr"><img id="neqr" alt="NEQR circuit"></div>
+              </div>
+            </div>
+
+            <div class="research-box" id="paper-view">
+              <div class="row-between">
+                <h3>Paper Benchmark Tables (9, 11 &amp; 21)</h3>
+                <button class="btn-soft" id="load-paper-tables-btn" type="button">Load Tables</button>
+              </div>
+              <p class="cap-note" id="paper-worked-note">Click &ldquo;Load Tables&rdquo; to inspect exact computed metrics from the paper.</p>
+              <div class="tbl-wrap"><table class="tbl" id="paper-families-tbl"><thead><tr><th>Circuit</th><th>Family</th><th>Qubits</th><th>CNOTs</th><th>Depth</th></tr></thead><tbody></tbody></table></div>
+              <div class="tbl-wrap"><table class="tbl" id="paper-bounds-tbl"><thead><tr><th>Method</th><th>MSE</th><th>PSNR (dB)</th></tr></thead><tbody></tbody></table></div>
+              <div class="tbl-wrap"><table class="tbl" id="paper-t9-tbl"><thead><tr><th>Image</th><th>F</th><th>T</th><th>P</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+              <div class="tbl-wrap"><table class="tbl" id="paper-comp-tbl"><thead><tr><th>Image Size</th><th>n</th><th>FRQI Ops</th><th>NEQR Ops (q=8)</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </div>
+        </details>
+      </footer>
+    </main>
 
     <div id="toast" class="toast" hidden></div>
   </div>

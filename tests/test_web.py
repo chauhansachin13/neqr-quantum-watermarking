@@ -44,9 +44,13 @@ def test_data_url_roundtrip():
 def test_static_files_and_traversal(server):
     base, _ = server
     status, body = _get(base + "/")
-    assert status == 200 and b"NEQR Quantum Watermarking" in body
+    assert status == 200 and b"NEQR Quantum Watermarking" in body and b"research-base-paper.pdf" in body
     for path in ("/style.css", "/app.js", "/inside.js"):
         assert _get(base + path)[0] == 200
+    with urllib.request.urlopen(base + "/research-base-paper.pdf", timeout=30) as r:
+        assert r.status == 200
+        assert r.headers.get("Content-Type") == "application/pdf"
+        assert r.read().startswith(b"%PDF-")
     with pytest.raises(urllib.error.HTTPError) as err:
         _get(base + "/../server.py")
     assert err.value.code == 404
